@@ -37,7 +37,7 @@ fragColor = texture (tex, tex_coord) * texture (tex2, tex_coord) + 0.5 * vec4(c,
 END
           )
 
-        (define rect (load-ply-mesh "test.ply" vertex: '((position x y z) (color nx ny nz) (uv s t))
+        (define rect (load-ply-mesh "r/test.ply" vertex: '((position x y z) (color nx ny nz) (uv s t))
                                     face: 'vertex_indices))
 
         (define texs '())
@@ -58,9 +58,9 @@ END
           (set! *fragment* (make-shader gl:+fragment-shader+ *fragment*))
           (define prog (make-program (list *vertex* *fragment*)))
 
-          (set! texs (cons (load-ogl-texture "test.png" force-channels/auto texture-id/create-new-id texture/repeats) texs))
+          (set! texs (cons (load-ogl-texture "r/test.png" force-channels/auto texture-id/create-new-id texture/repeats) texs))
           (print (last-result))
-          (set! texs (cons (load-ogl-texture "test2.png" force-channels/auto texture-id/create-new-id texture/repeats) texs))
+          (set! texs (cons (load-ogl-texture "r/test2.png" force-channels/auto texture-id/create-new-id texture/repeats) texs))
           (print (last-result))
 
           (mesh-make-vao! rect
