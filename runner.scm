@@ -4,6 +4,7 @@
      forcible
      debug
      nrepl)
+(declare (uses game))
 
 ;; main mutex for repl
 (define with-main-mutex
@@ -13,15 +14,18 @@
                     proc
                     (lambda () (mutex-unlock! main-mutex))))))
 
-(load "game.scm")
+(eval-when (eval)
+  (load "game.scm"))
+
 (import game)
 
 (define *program* #f)
 
-(define (r)
-  (load "game.scm")
-  (set! *program* (compile-pipeline))
-  'ok)
+(eval-when (eval)
+  (define (r)
+    (load "game.scm")
+    (set! *program* (compile-pipeline))
+    'ok))
 
 (thread-start!
   (lambda ()

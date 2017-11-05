@@ -1,3 +1,4 @@
+(declare (unit game))
 (module game *
         (import scheme chicken)
         (use soil (prefix glfw3 glfw:) (prefix opengl-glew gl:) gl-utils gl-math)
@@ -7,7 +8,7 @@
         (define *vertex*
 #<<END
 #version 400
-in vec2 position;
+in vec3 position;
 in vec3 color;
 in vec2 uv;
 out vec2 tex_coord;
@@ -15,7 +16,7 @@ out vec3 c;
 uniform mat4 MVP;
 
 void main(){
-gl_Position = MVP * vec4(position, 0.0, 1.0);
+gl_Position = MVP * vec4(position, 1.0);
 tex_coord = uv;
 c = color;
 }
@@ -31,42 +32,19 @@ out vec4 fragColor;
 uniform sampler2D tex;
 uniform sampler2D tex2;
 void main(){
-fragColor = texture (tex, tex_coord) * texture (tex2, tex_coord) * vec4(c, 1.0);
+fragColor = texture (tex, tex_coord) * texture (tex2, tex_coord) + 0.5 * vec4(c, 1.0);
 }
 END
           )
 
-        (define rect (make-mesh
-                       vertices: '(attributes: ((position #:float 2)
-                                                (color #:unsigned-byte 3 normalized: #t)
-                                                (uv #:float 2))
-                                               initial-elements: ((position . (-1 -1
-                                                                                  1 -1
-                                                                                  1  1
-                                                                                  -1  1))
-                                                                  (color . (255 0   0
-                                                                            0   255 0
-                                                                            0   0   255
-                                                                            255 0   255))
-                                                                  (uv . (-1 -1
-                                                                         1 -1
-                                                                         1 1
-                                                                         -1 1))))
-                       indices: '(type: #:ushort
-                                        initial-elements: (0 1 2
-                                                           0 2 3))))
+        (define rect (load-ply-mesh "test.ply" vertex: '((position x y z) (color nx ny nz) (uv s t))
+                                    face: 'vertex_indices))
 
-        (define (test-fun)
-          (print 'blah))
+        (define texs '())
 
         (define projection-matrix
           (perspective 640 480 0.1 100 70))
 
-        (define tex
-          (load-ogl-texture "test.png" force-channels/auto texture-id/create-new-id texture/repeats))
-
-        (define tex2
-          (load-ogl-texture "test2.png" force-channels/auto texture-id/create-new-id texture/repeats))
 
         (define (cam-look-at t)
           (look-at *camera-pos*
@@ -80,6 +58,11 @@ END
           (set! *fragment* (make-shader gl:+fragment-shader+ *fragment*))
           (define prog (make-program (list *vertex* *fragment*)))
 
+          (set! texs (cons (load-ogl-texture "test.png" force-channels/auto texture-id/create-new-id texture/repeats) texs))
+          (print (last-result))
+          (set! texs (cons (load-ogl-texture "test2.png" force-channels/auto texture-id/create-new-id texture/repeats) texs))
+          (print (last-result))
+
           (mesh-make-vao! rect
                           `((position . ,(gl:get-attrib-location prog "position"))
                             (color . ,(gl:get-attrib-location prog "color"))
@@ -87,7 +70,9 @@ END
           prog)
 
         (define (render prog)
+          (gl:enable gl:+depth-test+)
           (point-x-set! *camera-pos* (* 5 (sin (glfw:get-time))))
+          (point-y-set! *camera-pos* (* 5 (sin (/ (glfw:get-time) 2))))
           (gl:use-program prog)
           (gl:uniform-matrix4fv (gl:get-uniform-location prog "MVP")
                                 1 #f
@@ -95,9 +80,9 @@ END
                                     (m* (cam-look-at (make-point 0 0 0)) model-matrix)))
 
           (gl:active-texture gl:+texture0+)
-          (gl:bind-texture gl:+texture-2d+ tex)
-          (gl:active-texture gl:+texture0+)
-          (gl:bind-texture gl:+texture-2d+ tex)
+          (gl:bind-texture gl:+texture-2d+ (car texs))
+          (gl:active-texture gl:+texture1+)
+          (gl:bind-texture gl:+texture-2d+ (cadr texs))
 
           (gl:uniform1i (gl:get-uniform-location prog "tex") 0)
           (gl:uniform1i (gl:get-uniform-location prog "tex2") 1)
