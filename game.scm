@@ -11,11 +11,13 @@ in vec2 position;
 in vec3 color;
 in vec2 uv;
 out vec2 tex_coord;
+out vec3 c;
 uniform mat4 MVP;
 
 void main(){
 gl_Position = MVP * vec4(position, 0.0, 1.0);
 tex_coord = uv;
+c = color;
 }
 END
           )
@@ -24,10 +26,12 @@ END
 #<<END
 #version 400
 in vec2 tex_coord;
+in vec3 c;
 out vec4 fragColor;
 uniform sampler2D tex;
+uniform sampler2D tex2;
 void main(){
-fragColor = texture (tex, tex_coord);
+fragColor = texture (tex, tex_coord) * texture (tex2, tex_coord) * vec4(c, 1.0);
 }
 END
           )
@@ -61,6 +65,9 @@ END
         (define tex
           (load-ogl-texture "test.png" force-channels/auto texture-id/create-new-id texture/repeats))
 
+        (define tex2
+          (load-ogl-texture "test2.png" force-channels/auto texture-id/create-new-id texture/repeats))
+
         (define (cam-look-at t)
           (look-at *camera-pos*
                    t
@@ -80,14 +87,22 @@ END
           prog)
 
         (define (render prog)
-          (point-x-set! *camera-pos* (* 16 (sin (glfw:get-time))))
+          (point-x-set! *camera-pos* (* 5 (sin (glfw:get-time))))
           (gl:use-program prog)
           (gl:uniform-matrix4fv (gl:get-uniform-location prog "MVP")
                                 1 #f
                                 (m* projection-matrix
                                     (m* (cam-look-at (make-point 0 0 0)) model-matrix)))
-          (gl:bind-vertex-array (mesh-vao rect))
+
+          (gl:active-texture gl:+texture0+)
           (gl:bind-texture gl:+texture-2d+ tex)
+          (gl:active-texture gl:+texture0+)
+          (gl:bind-texture gl:+texture-2d+ tex)
+
+          (gl:uniform1i (gl:get-uniform-location prog "tex") 0)
+          (gl:uniform1i (gl:get-uniform-location prog "tex2") 1)
+
+          (gl:bind-vertex-array (mesh-vao rect))
 
           (gl:draw-elements-base-vertex (mode->gl (mesh-mode rect))
                                         (mesh-n-indices rect)
