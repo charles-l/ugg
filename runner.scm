@@ -13,8 +13,6 @@
                     proc
                     (lambda () (mutex-unlock! main-mutex))))))
 
-
-
 (load "game.scm")
 (import game)
 
