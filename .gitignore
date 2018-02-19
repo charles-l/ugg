@@ -1,3 +1,5 @@
 *.import.scm
 *.o
+*.out
 game
+*.so
