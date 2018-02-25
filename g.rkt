@@ -21,6 +21,8 @@
 (define-g compile_shader (_fun _string _uint32 -> _uint32))
 (define-g link_program (_fun _uint32 _uint32 -> _uint32))
 (define-g glUseProgram (_fun _uint -> _void))
+(define-g glGetUniformLocation (_fun _uint _string -> _int))
+(define-g inject_mvp (_fun _uint -> _void))
 
 (define (make-mesh positions)
   (let* ((n (gen_vao))
@@ -56,7 +58,9 @@
 (println m)
 
 (glUseProgram shid)
+(define mvpid (glGetUniformLocation shid "mvp"))
 
 (main_loop (lambda ()
              (clear_frame)
+             (inject_mvp mvpid)
              (draw_array (car m) (cdr m))))

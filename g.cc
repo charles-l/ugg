@@ -31,10 +31,21 @@ unsigned int gen_vao() {
   return id;
 }
 
+static glm::mat4 projection;
+
+void inject_mvp(GLuint mvp_uid) {
+    glm::mat4 view = glm::lookAt(glm::vec3(4,3,3), glm::vec3(0,0,0), glm::vec3(0,1,0));
+    glm::mat4 model = glm::mat4(1.0);
+    glm::mat4 mvp = projection * view * model;
+    glUniformMatrix4fv(mvp_uid, 1, GL_FALSE, glm::value_ptr(mvp));
+}
+
 void init_screen(const char *caption) {
+    projection = glm::perspective(45.0f, (float)(SCREEN_WIDTH / SCREEN_HEIGHT), 0.1f, 100.f);
     if (SDL_Init(SDL_INIT_VIDEO) < 0)
         sdl_die("Couldn't initialize SDL");
     atexit (SDL_Quit);
+
     SDL_GL_LoadLibrary(NULL);
     // Request an OpenGL 4.5 context (should be core)
     SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1);
@@ -60,13 +71,18 @@ void init_screen(const char *caption) {
     if (window == NULL) sdl_die("Couldn't set video mode");
 
     maincontext = SDL_GL_CreateContext(window);
+    SDL_SetHint( SDL_HINT_RENDER_SCALE_QUALITY, "1" );
     if (maincontext == NULL)
         sdl_die("Failed to create OpenGL context");
 
     int w,h;
     SDL_GetWindowSize(window, &w, &h);
     SDL_GL_MakeCurrent(window, maincontext);
+
     glewInit();
+
+    glEnable(GL_MULTISAMPLE);
+
 
     glViewport(0, 0, w, h);
     glClearColor(0.0f, 0.5f, 1.0f, 0.0f);
@@ -108,6 +124,7 @@ unsigned int link_program(unsigned int vshader, unsigned int fshader) {
     printf("%s\n", e);
   }
 
+
   glDeleteShader(vshader);
   glDeleteShader(fshader);
 
@@ -115,7 +132,7 @@ unsigned int link_program(unsigned int vshader, unsigned int fshader) {
 }
 
 void clear_frame() {
-  glClear(GL_COLOR_BUFFER_BIT);
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
 void draw_array(unsigned int vao, unsigned int vbo) {
