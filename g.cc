@@ -80,7 +80,38 @@ unsigned int compile_shader(const char *source, unsigned int type) {
   GLuint id = glCreateShader(type);
   glShaderSource(id, 1, &source, NULL);
   glCompileShader(id);
+  int result;
+  int loglen;
+  glGetShaderiv(id, GL_COMPILE_STATUS, &result);
+  glGetShaderiv(id, GL_INFO_LOG_LENGTH, &loglen);
+  if(loglen > 0) {
+    char *e = (char *) malloc(loglen + 1);
+    glGetShaderInfoLog(id, loglen, NULL, e);
+    printf("%s\n", e);
+    free(e);
+  }
   return id;
+}
+
+unsigned int link_program(unsigned int vshader, unsigned int fshader) {
+  unsigned int p = glCreateProgram();
+  glAttachShader(p, vshader);
+  glAttachShader(p, fshader);
+  glLinkProgram(p);
+
+  int result, loglen;
+  glGetProgramiv(p, GL_LINK_STATUS, &result);
+  glGetProgramiv(p, GL_INFO_LOG_LENGTH, &loglen);
+  if(loglen > 0) {
+    char *e = (char *) malloc(loglen + 1);
+    glGetProgramInfoLog(p, loglen, NULL, e);
+    printf("%s\n", e);
+  }
+
+  glDeleteShader(vshader);
+  glDeleteShader(fshader);
+
+  return p;
 }
 
 void clear_frame() {
