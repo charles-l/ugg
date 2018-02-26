@@ -33,7 +33,9 @@ unsigned int gen_vao() {
 
 static glm::mat4 projection;
 
-void inject_mvp(GLuint mvp_uid) {
+void inject_mvp(GLuint prog) {
+    glUseProgram(prog);
+    GLuint mvp_uid = glGetUniformLocation(prog, "mvp");
     glm::mat4 view = glm::lookAt(glm::vec3(4,3,3), glm::vec3(0,0,0), glm::vec3(0,1,0));
     glm::mat4 model = glm::mat4(1.0);
     glm::mat4 mvp = projection * view * model;
@@ -82,6 +84,8 @@ void init_screen(const char *caption) {
     glewInit();
 
     glEnable(GL_MULTISAMPLE);
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
 
 
     glViewport(0, 0, w, h);
@@ -135,23 +139,37 @@ void clear_frame() {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
-void draw_array(unsigned int vao, unsigned int vbo) {
+void draw_array(unsigned int vao, unsigned int array_id, unsigned int element_array_id, size_t n) {
   glBindVertexArray(vao);
-  glEnableVertexAttribArray(0);
-  glBindBuffer(GL_ARRAY_BUFFER, vbo);
-  glVertexAttribPointer(
-      0, 3, GL_FLOAT, GL_FALSE, 0, NULL
-    );
-  glDrawArrays(GL_TRIANGLES, 0, 3);
+
+  { // attribute 0: vertices
+    glEnableVertexAttribArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, array_id);
+    // !!! assumes tris
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+  }
+
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, element_array_id);
+  glDrawElements(GL_TRIANGLES, n, GL_UNSIGNED_INT, NULL);
+
   glDisableVertexAttribArray(0);
   glBindVertexArray(0);
 }
 
-unsigned int gen_vbo(float *buf, size_t n) {
+unsigned int gen_uvbo(unsigned int *buf, unsigned int type, size_t n) {
   unsigned int id;
   glGenBuffers(1, &id);
-  glBindBuffer(GL_ARRAY_BUFFER, id);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(float) * n, buf, GL_STATIC_DRAW);
+  glBindBuffer(type, id);
+  glBufferData(type, sizeof(unsigned int) * n, buf, GL_STATIC_DRAW);
+
+  return id;
+}
+
+unsigned int gen_fvbo(float *buf, unsigned int type, size_t n) {
+  unsigned int id;
+  glGenBuffers(1, &id);
+  glBindBuffer(type, id);
+  glBufferData(type, sizeof(float) * n, buf, GL_STATIC_DRAW);
 
   return id;
 }
@@ -165,8 +183,8 @@ void main_loop(void (*f)(void)) {
       if (event.type == SDL_QUIT) {
         quit = true;
       }
-      f();
     }
+    f();
   }
 }
 
