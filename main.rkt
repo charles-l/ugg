@@ -1,13 +1,13 @@
 #lang racket
+(require reloadable)
 (require "g.rkt")
 
 (init_screen "game")
 
-(define shid (make-shader "vert.glsl" "frag.glsl"))
+(define run (reloadable-entry-point->procedure
+              (make-reloadable-entry-point 'run "game.rkt")))
 
-(define m (read-mesh "/tmp/x.scm"))
+(reload!)
 
-(main_loop (lambda ()
-             (clear_frame)
-             (inject_mvp shid)
-             (draw m)))
+(main_loop run)
+

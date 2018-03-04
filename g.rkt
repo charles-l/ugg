@@ -21,7 +21,7 @@
 (define-g init_screen (_fun _string -> _void))
 (define-g main_loop (_fun (_fun -> _void) -> _void))
 (define-g gen_vao (_fun -> _uint32))
-(define-g clear_frame (_fun -> _void))
+(define-g clear_frame (_fun _float _float _float -> _void))
 (define-g gen_fvbo (_fun _pointer _uint32 _size -> _uint32))
 (define-g gen_uvbo (_fun _pointer _uint32 _size -> _uint32))
 (define-g draw_array (_fun _uint32 _uint32 _uint32 _size -> _void))

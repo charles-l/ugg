@@ -89,7 +89,6 @@ void init_screen(const char *caption) {
 
 
     glViewport(0, 0, w, h);
-    glClearColor(0.0f, 0.5f, 1.0f, 0.0f);
 }
 
 SDL_Window* get_win() {
@@ -135,7 +134,8 @@ unsigned int link_program(unsigned int vshader, unsigned int fshader) {
   return p;
 }
 
-void clear_frame() {
+void clear_frame(float r, float g, float b) {
+  glClearColor(r, g, b, 0.0f);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
@@ -176,12 +176,12 @@ unsigned int gen_fvbo(float *buf, unsigned int type, size_t n) {
 
 void main_loop(void (*f)(void)) {
   SDL_Event event;
-  bool quit = false;
-  while (!quit) {
+  while (true) {
     SDL_GL_SwapWindow(window);
     while (SDL_PollEvent(&event)) {
       if (event.type == SDL_QUIT) {
-        quit = true;
+        printf("quit\n");
+        return;
       }
     }
     f();
