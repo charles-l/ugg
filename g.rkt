@@ -3,7 +3,7 @@
          ffi/unsafe/define
          ffi/vector)
 
-(provide init_screen
+#;(provide init_screen
          make-shader
          read-mesh
          glUseProgram
@@ -11,15 +11,41 @@
          main_loop
          clear_frame
          inject_mvp
+         key_down
          draw)
+
+(provide (all-defined-out))
 
 (define-ffi-definer define-g (ffi-lib "./g"))
 
 (define _win-ptr (_cpointer 'SDL_Window))
 
+(define-cstruct _sdl-keysym
+                ((scancode _int32)
+                 (keycode (_enum '(right = 79 left down up)))
+                 (mod _uint16)
+                 (_ _uint32)))
+
+(define _event-type (_enum '(keydown = #x300 keyup) _uint32 #:unknown identity))
+
+(define-cstruct _sdl-keyboard-event
+                ((type _event-type)
+                 (timestamp _uint32)
+                 (window-id _uint32)
+                 (state _uint8)
+                 (repeat _uint8)
+                 (padding2 _uint8)
+                 (padding3 _uint8)
+                 (keysym _sdl-keysym)
+                 (padding4 (_array _uint32 6))))
+
+(define-cstruct _sdl-event
+                ((type _event-type)
+                 (_ (_array _uint32 13))))
+
 (define-g get_win (_fun -> _win-ptr))
 (define-g init_screen (_fun _string -> _void))
-(define-g main_loop (_fun (_fun -> _void) -> _void))
+(define-g main_loop (_fun (_fun -> _void) (_fun _sdl-event -> _void) -> _void))
 (define-g gen_vao (_fun -> _uint32))
 (define-g clear_frame (_fun _float _float _float -> _void))
 (define-g gen_fvbo (_fun _pointer _uint32 _size -> _uint32))
@@ -30,10 +56,18 @@
 (define-g link_program (_fun _uint32 _uint32 -> _uint32))
 (define-g glUseProgram (_fun _uint -> _void))
 (define-g glGetUniformLocation (_fun _uint _string -> _int))
-(define-g inject_mvp (_fun _uint -> _void))
+(define-g inject_mvp (_fun _uint (_f32vector i) -> _void))
+(define-g is_key_down (_fun _int -> _uint8))
 
 (struct vao (id array-id element-array-id))
 (struct mesh (verts faces vao) #:transparent)
+
+(define (key-down? key)
+  (case key
+    ((right) (not (zero? (is_key_down 79))))
+    ((left) (not (zero? (is_key_down 80))))
+    ((down) (not (zero? (is_key_down 81))))
+    ((up) (not (zero? (is_key_down 82))))))
 
 (define (%gen-mesh-vao flat-vertex-coords flat-face-indices)
   (define ARRAY-BUFFER #x8892)

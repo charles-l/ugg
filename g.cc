@@ -12,8 +12,8 @@
 #include "GL/glut.h"
 
 static const int SCREEN_FULLSCREEN = 0;
-static const int SCREEN_WIDTH  = 960;
-static const int SCREEN_HEIGHT = 540;
+static const int SCREEN_WIDTH  = 1280;
+static const int SCREEN_HEIGHT = 720;
 static SDL_Window *window = NULL;
 static SDL_GLContext maincontext;
 
@@ -33,10 +33,10 @@ unsigned int gen_vao() {
 
 static glm::mat4 projection;
 
-void inject_mvp(GLuint prog) {
+void inject_mvp(GLuint prog, float pos[3]) {
     glUseProgram(prog);
     GLuint mvp_uid = glGetUniformLocation(prog, "mvp");
-    glm::mat4 view = glm::lookAt(glm::vec3(4,3,3), glm::vec3(0,0,0), glm::vec3(0,1,0));
+    glm::mat4 view = glm::lookAt(glm::make_vec3(pos), glm::vec3(0,0,0), glm::vec3(0,1,0));
     glm::mat4 model = glm::mat4(1.0);
     glm::mat4 mvp = projection * view * model;
     glUniformMatrix4fv(mvp_uid, 1, GL_FALSE, glm::value_ptr(mvp));
@@ -174,7 +174,12 @@ unsigned int gen_fvbo(float *buf, unsigned int type, size_t n) {
   return id;
 }
 
-void main_loop(void (*f)(void)) {
+char is_key_down(int k) {
+  const Uint8 *state = SDL_GetKeyboardState(NULL);
+  return state[k];
+}
+
+void main_loop(void (*f)(void), void (*g)(SDL_Event event)) {
   SDL_Event event;
   while (true) {
     SDL_GL_SwapWindow(window);
@@ -183,7 +188,9 @@ void main_loop(void (*f)(void)) {
         printf("quit\n");
         return;
       }
+      g(event);
     }
+    SDL_PumpEvents();
     f();
   }
 }
