@@ -121,11 +121,6 @@
         (f (compile_shader (file->string frag-path) FRAGMENT-SHADER)))
     (shader (link_program v f) fields)))
 
-(define (dump-mat4 m)
-  (println (array-ref (mat4-elements m) 0 0))
-  (for ((i (in-range 4)))
-    (printf "~a ~a ~a ~a\n" (map (curryr array-ref (mat4-elements m) i) (iota 4)))))
-
 (define (with-shader shader fields thunk)
   (glUseProgram (shader-id shader))
   (for ((f (shader-fields shader)))
