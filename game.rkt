@@ -6,22 +6,24 @@
 
 (provide run)
 
-(define shid (make-shader "vert.glsl" "frag.glsl"))
+(define a-shader (make-shader "vert.glsl" "frag.glsl" '((mvp . mat4))))
 
-(define m (read-mesh "/tmp/x.scm"))
+(define m (read-mesh "./x.scm"))
 
-(define pos (f32vector 0.0 -5.0 1.0))
+(define pos (make-vec3 0.0 -5.0 1.0))
 
 (define (run)
   (when (key-down? 'up)
-    (f32vector-set! pos 0 (+ (f32vector-ref pos 0) 1)))
+    (set-vec3-x! pos (+ (vec3-x pos) 1)))
   (when (key-down? 'down)
-    (f32vector-set! pos 0 (- (f32vector-ref pos 0) 1)))
+    (set-vec3-x! pos (- (vec3-x pos) 1)))
   (when (key-down? 'right)
-    (f32vector-set! pos 1 (+ (f32vector-ref pos 1) 1)))
+    (set-vec3-y! pos (+ (vec3-y pos) 1)))
   (when (key-down? 'left)
-    (f32vector-set! pos 1 (- (f32vector-ref pos 1) 1)))
+    (set-vec3-y! pos (- (vec3-y pos) 1)))
   (clear_frame 0.1 0.2 0.3)
-  (inject_mvp shid pos)
-  (draw m))
+  (define mvp (calculate_mvp pos))
+  (with-shader a-shader `((mvp . ,mvp))
+               (thunk
+                 (draw m))))
 

@@ -1,7 +1,8 @@
 #lang racket
 (require ffi/unsafe
          ffi/unsafe/define
-         ffi/vector)
+         ffi/vector
+         (only-in srfi/1 iota))
 
 #;(provide init_screen
          make-shader
@@ -10,7 +11,6 @@
          glGetUniformLocation
          main_loop
          clear_frame
-         inject_mvp
          key_down
          draw)
 
@@ -19,6 +19,14 @@
 (define-ffi-definer define-g (ffi-lib "./g"))
 
 (define _win-ptr (_cpointer 'SDL_Window))
+
+(define-cstruct _vec3
+                ((x _float)
+                 (y _float)
+                 (z _float)))
+
+(define-cstruct _mat4
+                ((elements (_array _float 4 4))))
 
 (define-cstruct _sdl-keysym
                 ((scancode _int32)
@@ -55,12 +63,16 @@
 (define-g compile_shader (_fun _string _uint32 -> _uint32))
 (define-g link_program (_fun _uint32 _uint32 -> _uint32))
 (define-g glUseProgram (_fun _uint -> _void))
-(define-g glGetUniformLocation (_fun _uint _string -> _int))
-(define-g inject_mvp (_fun _uint (_f32vector i) -> _void))
+(define-g glUniformMatrix4fv (_fun _uint _size _bool _pointer -> _void))
+(define-g glGetUniformLocation (_fun _uint _symbol -> _int))
 (define-g is_key_down (_fun _int -> _uint8))
+(define-g line_draw_mode (_fun -> _void))
+(define-g fill_draw_mode (_fun -> _void))
+(define-g calculate_mvp (_fun _vec3 -> _mat4))
 
 (struct vao (id array-id element-array-id))
 (struct mesh (verts faces vao) #:transparent)
+(struct shader (id fields))
 
 (define (key-down? key)
   (case key
@@ -101,10 +113,32 @@
               (vao-element-array-id (mesh-vao m))
               (* 3 (length (mesh-faces m)))))
 
-(define (make-shader vert-path frag-path)
+
+(define (make-shader vert-path frag-path fields)
   (define FRAGMENT-SHADER #x8B30)
   (define VERTEX-SHADER #x8B31)
   (let ((v (compile_shader (file->string vert-path) VERTEX-SHADER))
         (f (compile_shader (file->string frag-path) FRAGMENT-SHADER)))
-    (link_program v f)))
+    (shader (link_program v f) fields)))
+
+(define (dump-mat4 m)
+  (println (array-ref (mat4-elements m) 0 0))
+  (for ((i (in-range 4)))
+    (printf "~a ~a ~a ~a\n" (map (curryr array-ref (mat4-elements m) i) (iota 4)))))
+
+(define (with-shader shader fields thunk)
+  (glUseProgram (shader-id shader))
+  (for ((f (shader-fields shader)))
+    (cond
+      ((assoc (car f) fields) => (λ (p)
+                                    (let ((id (glGetUniformLocation (shader-id shader) (car f)))
+                                          (type (cdr f))
+                                          (val (cdr p)))
+                                      (match type
+                                        ('mat4 (glUniformMatrix4fv id 1 #f
+                                                                   (array-ptr (mat4-elements val))))))))
+      (else
+        (error "required field not included" f))))
+  (thunk)
+  (glUseProgram 0))
 

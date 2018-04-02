@@ -1,10 +1,8 @@
 #include <cstdio>
 #include <cstdlib>
 
-#define GLM_FORCE_RADIANS 1
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
+#define HANDMADE_MATH_IMPLEMENTATION
+#include "HandmadeMath.h"
 #include <SDL2/SDL.h>
 
 #include <GL/glew.h>
@@ -31,19 +29,35 @@ unsigned int gen_vao() {
   return id;
 }
 
-static glm::mat4 projection;
+static hmm_mat4 projection;
 
-void inject_mvp(GLuint prog, float pos[3]) {
-    glUseProgram(prog);
-    GLuint mvp_uid = glGetUniformLocation(prog, "mvp");
-    glm::mat4 view = glm::lookAt(glm::make_vec3(pos), glm::vec3(0,0,0), glm::vec3(0,1,0));
-    glm::mat4 model = glm::mat4(1.0);
-    glm::mat4 mvp = projection * view * model;
-    glUniformMatrix4fv(mvp_uid, 1, GL_FALSE, glm::value_ptr(mvp));
+void dump_mat4(hmm_mat4 m) {
+  printf("(");
+  for(int i = 0; i < 4; i++) {
+    for(int j = 0; j < 4; j++) {
+      printf("%f ", m.Elements[i][j]);
+    }
+    if(i == 3) printf(")");
+    printf("\n");
+  }
+}
+
+hmm_mat4 calculate_mvp(hmm_vec3 pos) {
+  // HACK for clang version 5.0.1 (tags/RELEASE_501/final)
+  // Have to assign these vectors to variables otherwise it throws
+  // some nan junk in them when doing LookAt calculation. Probably a
+  // bug with inlining.
+  hmm_vec3 goal = HMM_Vec3(0, 0, 0);
+  hmm_vec3 up = HMM_Vec3(0, 1, 0);
+  hmm_mat4 view = HMM_LookAt(pos, goal, up);
+  hmm_mat4 model = HMM_Mat4d(1.0);
+  hmm_mat4 mvp = projection * view * model;
+  dump_mat4(view);
+  return mvp;
 }
 
 void init_screen(const char *caption) {
-    projection = glm::perspective(45.0f, (float)(SCREEN_WIDTH / SCREEN_HEIGHT), 0.1f, 100.f);
+    projection = HMM_Perspective(45.0f, (float)(SCREEN_WIDTH / SCREEN_HEIGHT), 0.1f, 100.f);
     if (SDL_Init(SDL_INIT_VIDEO) < 0)
         sdl_die("Couldn't initialize SDL");
     atexit (SDL_Quit);
@@ -89,6 +103,14 @@ void init_screen(const char *caption) {
 
 
     glViewport(0, 0, w, h);
+}
+
+void line_draw_mode() {
+  glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+}
+
+void fill_draw_mode() {
+  glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 }
 
 SDL_Window* get_win() {
