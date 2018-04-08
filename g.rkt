@@ -4,7 +4,8 @@
   (rename-in ffi/unsafe (-> c->))
   ffi/unsafe/define
   ffi/vector
-  (only-in srfi/1 iota))
+  (only-in srfi/1 iota)
+  (only-in rnrs/base-6 mod))
 
 #;(provide init_screen
          make-shader
@@ -73,14 +74,19 @@
 (define-g glUniform3f (_fun _int _float _float _float c-> _void))
 (define-g glGetUniformLocation (_fun _uint _symbol c-> _int))
 (define-g glPolygonMode (_fun _uint _uint c-> _void))
+(define-g glBufferSubData (_fun _uint _intptr _ptrdiff _pointer c-> _void))
+
 (define +gl-front-and-back+ #x0408)
 (define +gl-point+ #x1B00)
 (define +gl-line+ #x1B01)
 (define +gl-fill+ #x1B02)
 
+(define (warn f msg)
+  (fprintf (current-error-port) "warning (~a): ~a\n" f msg))
+
 (struct vao (id array-id element-array-id))
 
-(struct mesh (verts faces vao) #:transparent)
+(struct mesh ((verts #:mutable) faces vao) #:transparent)
 
 (struct shader (id fields))
 
@@ -91,13 +97,16 @@
     ((down) (not (zero? (is_key_down 81))))
     ((up) (not (zero? (is_key_down 82))))))
 
-(define (%gen-mesh-vao flat-vertex-coords flat-face-indices)
+; XXX currently no support for oversizing elements buffer - only for extra verts atm
+(define (%gen-mesh-vao flat-vertex-coords flat-face-indices #:override-verts-n (override-verts-n #f))
   (define +gl-array-buffer+ #x8892)
   (define +gl-element-array-buffer+ #x8893)
   (let* ((n (gen_vao))
          (r (gen_fvbo (f32vector->cpointer flat-vertex-coords)
                       +gl-array-buffer+
-                      (f32vector-length flat-vertex-coords)))
+                      (if override-verts-n
+                        override-verts-n
+                        (f32vector-length flat-vertex-coords))))
          (f (if flat-face-indices
               (gen_uvbo (u32vector->cpointer flat-face-indices)
                         +gl-element-array-buffer+
@@ -105,6 +114,16 @@
               #f)))
     (glBindVertexArray 0)
     (vao n r f)))
+
+; FIXME add bounds check
+(define (%append-verts! m verts)
+  (let ((n (length (mesh-verts m))))
+    (glBufferSubData
+      (vao-id (mesh-vao m))
+      n
+      (length verts)
+      (f32vector->cpointer (list->f32vector (flatten verts))))
+    (set-mesh-verts! m (append (mesh-verts m) verts))))
 
 
 (define (read-mesh f)
@@ -119,12 +138,14 @@
                            (list->u32vector (flatten faces)))))
    (mesh verts faces p)))
 
-(define/contract (make-line a b . rest)
-  (->* (vec3? vec3?) #:rest (listof vec3?) mesh?)
+(define/contract (make-line #:buffer-n (buffer-n #f) a b . rest)
+  (->* (vec3? vec3?) (#:buffer-n positive-integer?) #:rest (listof vec3?) mesh?)
   (define verts (append
                   (list (vec3->list a) (vec3->list b))
                   (map vec3->list rest)))
-  (define p (%gen-mesh-vao (list->f32vector (flatten verts)) #f))
+  (define p (%gen-mesh-vao (list->f32vector (flatten verts))
+                           #:override-verts-n (if buffer-n buffer-n #f)
+                           #f))
   (mesh verts #f p))
 
 (define (mesh-with-faces? m) (not (null? (mesh-faces m))))
@@ -136,11 +157,14 @@
                  (vao-element-array-id (mesh-vao m))
                  (* 3 (length (mesh-faces m)))))
 
-(define (draw-lines m #:connected? (connected? #f))
-  (draw_lines (vao-id (mesh-vao m))
-              (vao-array-id (mesh-vao m))
-              (length (mesh-verts m))
-              connected?))
+(define (draw-lines m #:connected? (connected? #t))
+  (let ((n (length (mesh-verts m))))
+    (when (and (not connected?) (not (zero? (mod n 2))))
+      (warn 'draw-lines "extra point in line mesh will not be drawn - maybe you meant to draw connected lines with #:connected? #t"))
+    (draw_lines (vao-id (mesh-vao m))
+                (vao-array-id (mesh-vao m))
+                n
+                connected?)))
 
 
 (define (make-shader vert-path frag-path fields)
