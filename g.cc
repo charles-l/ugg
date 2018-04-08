@@ -47,6 +47,7 @@ hmm_mat4 calculate_mvp(hmm_vec3 pos) {
   // Have to assign these vectors to variables otherwise it throws
   // some nan junk in them when doing LookAt calculation. Probably a
   // bug with inlining.
+  // TODO probably report that bug... :P
   hmm_vec3 goal = HMM_Vec3(0, 0, 0);
   hmm_vec3 up = HMM_Vec3(0, 1, 0);
   hmm_mat4 view = HMM_LookAt(pos, goal, up);
@@ -57,7 +58,7 @@ hmm_mat4 calculate_mvp(hmm_vec3 pos) {
 }
 
 void init_screen(const char *caption) {
-    projection = HMM_Perspective(45.0f, (float)(SCREEN_WIDTH / SCREEN_HEIGHT), 0.1f, 100.f);
+    projection = HMM_Perspective(45.0f, ((float) SCREEN_WIDTH / (float) SCREEN_HEIGHT), 0.1f, 100.f);
     if (SDL_Init(SDL_INIT_VIDEO) < 0)
         sdl_die("Couldn't initialize SDL");
     atexit (SDL_Quit);
