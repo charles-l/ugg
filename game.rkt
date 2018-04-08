@@ -10,6 +10,11 @@
 (define mono-shader (make-shader "vert.glsl" "mono.glsl" '((mvp . mat4) (color . vec3))))
 
 (define m (read-mesh "./x.scm"))
+(define l (make-line (make-vec3 0.0 0.0 0.0)
+                     (make-vec3 8.0 8.0 8.0)
+                     (make-vec3 1.0 4.0 1.0)
+                     (make-vec3 1.0 8.0 1.0)
+                     ))
 
 (define pos (make-vec3 0.0 -5.0 1.0))
 
@@ -29,5 +34,5 @@
                  (draw m)))
   (with-shader mono-shader `((mvp . ,mvp) (color . ,(make-vec3 1.0 1.0 1.0))) #:draw-mode 'line
                (thunk
-                 (draw m))))
+                 (draw-lines l))))
 

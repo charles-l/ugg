@@ -154,7 +154,7 @@ void clear_frame(float r, float g, float b) {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
-void draw_array(unsigned int vao, unsigned int array_id, unsigned int element_array_id, size_t n) {
+static inline void bind_vao_and_vbo(unsigned int vao, unsigned int array_id, size_t n) {
   glBindVertexArray(vao);
 
   { // attribute 0: vertices
@@ -163,12 +163,28 @@ void draw_array(unsigned int vao, unsigned int array_id, unsigned int element_ar
     // !!! assumes tris
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
   }
+}
 
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, element_array_id);
-  glDrawElements(GL_TRIANGLES, n, GL_UNSIGNED_INT, NULL);
-
+static inline void unbind_vao_and_vbo() {
   glDisableVertexAttribArray(0);
   glBindVertexArray(0);
+}
+
+void draw_lines(unsigned int vao, unsigned int array_id, size_t n, bool connected) {
+  bind_vao_and_vbo(vao, array_id, n);
+  {
+    glDrawArrays(connected ? GL_LINE_STRIP : GL_LINES, 0, n);
+  }
+  unbind_vao_and_vbo();
+}
+
+void draw_elements(unsigned int vao, unsigned int array_id, unsigned int element_array_id, size_t n) {
+  bind_vao_and_vbo(vao, array_id, n);
+  {
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, element_array_id);
+    glDrawElements(GL_TRIANGLES, n, GL_UNSIGNED_INT, NULL);
+  }
+  unbind_vao_and_vbo();
 }
 
 unsigned int gen_uvbo(unsigned int *buf, unsigned int type, size_t n) {

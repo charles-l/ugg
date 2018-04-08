@@ -1,8 +1,10 @@
 #lang racket
-(require ffi/unsafe
-         ffi/unsafe/define
-         ffi/vector
-         (only-in srfi/1 iota))
+(require
+  racket/contract
+  (rename-in ffi/unsafe (-> c->))
+  ffi/unsafe/define
+  ffi/vector
+  (only-in srfi/1 iota))
 
 #;(provide init_screen
          make-shader
@@ -51,27 +53,35 @@
                 ((type _event-type)
                  (_ (_array _uint32 13))))
 
-(define-g get_win (_fun -> _win-ptr))
-(define-g init_screen (_fun _string -> _void))
-(define-g main_loop (_fun (_fun -> _void) (_fun _sdl-event -> _void) -> _void))
-(define-g gen_vao (_fun -> _uint32))
-(define-g clear_frame (_fun _float _float _float -> _void))
-(define-g gen_fvbo (_fun _pointer _uint32 _size -> _uint32))
-(define-g gen_uvbo (_fun _pointer _uint32 _size -> _uint32))
-(define-g draw_array (_fun _uint32 _uint32 _uint32 _size -> _void))
-(define-g compile_shader (_fun _string _uint32 -> _uint32))
-(define-g link_program (_fun _uint32 _uint32 -> _uint32))
-(define-g glBindVertexArray (_fun _uint32 -> _void))
-(define-g glUseProgram (_fun _uint -> _void))
-(define-g glUniformMatrix4fv (_fun _uint _size _bool _pointer -> _void))
-(define-g glUniform3f (_fun _int _float _float _float -> _void))
-(define-g glGetUniformLocation (_fun _uint _symbol -> _int))
-(define-g glPolygonMode (_fun _uint _uint -> _void))
-(define-g is_key_down (_fun _int -> _uint8))
-(define-g calculate_mvp (_fun _vec3 -> _mat4))
+(define-g get_win (_fun c-> _win-ptr))
+(define-g init_screen (_fun _string c-> _void))
+(define-g main_loop (_fun (_fun c-> _void) (_fun _sdl-event c-> _void) c-> _void))
+(define-g gen_vao (_fun c-> _uint32))
+(define-g clear_frame (_fun _float _float _float c-> _void))
+(define-g gen_fvbo (_fun _pointer _uint32 _size c-> _uint32))
+(define-g gen_uvbo (_fun _pointer _uint32 _size c-> _uint32))
+(define-g draw_elements (_fun _uint32 _uint32 _uint32 _size c-> _void))
+(define-g draw_lines (_fun _uint32 _uint32 _size _bool c-> _void))
+(define-g compile_shader (_fun _string _uint32 c-> _uint32))
+(define-g link_program (_fun _uint32 _uint32 c-> _uint32))
+(define-g is_key_down (_fun _int c-> _uint8))
+(define-g calculate_mvp (_fun _vec3 c-> _mat4))
+
+(define-g glBindVertexArray (_fun _uint32 c-> _void))
+(define-g glUseProgram (_fun _uint c-> _void))
+(define-g glUniformMatrix4fv (_fun _uint _size _bool _pointer c-> _void))
+(define-g glUniform3f (_fun _int _float _float _float c-> _void))
+(define-g glGetUniformLocation (_fun _uint _symbol c-> _int))
+(define-g glPolygonMode (_fun _uint _uint c-> _void))
+(define +gl-front-and-back+ #x0408)
+(define +gl-point+ #x1B00)
+(define +gl-line+ #x1B01)
+(define +gl-fill+ #x1B02)
 
 (struct vao (id array-id element-array-id))
+
 (struct mesh (verts faces vao) #:transparent)
+
 (struct shader (id fields))
 
 (define (key-down? key)
@@ -82,15 +92,17 @@
     ((up) (not (zero? (is_key_down 82))))))
 
 (define (%gen-mesh-vao flat-vertex-coords flat-face-indices)
-  (define ARRAY-BUFFER #x8892)
-  (define ELEMENT-ARRAY-BUFFER #x8893)
+  (define +gl-array-buffer+ #x8892)
+  (define +gl-element-array-buffer+ #x8893)
   (let* ((n (gen_vao))
          (r (gen_fvbo (f32vector->cpointer flat-vertex-coords)
-                      ARRAY-BUFFER
+                      +gl-array-buffer+
                       (f32vector-length flat-vertex-coords)))
-         (f (gen_uvbo (u32vector->cpointer flat-face-indices)
-                      ELEMENT-ARRAY-BUFFER
-                      (u32vector-length flat-face-indices))))
+         (f (if flat-face-indices
+              (gen_uvbo (u32vector->cpointer flat-face-indices)
+                        +gl-element-array-buffer+
+                        (u32vector-length flat-face-indices))
+              #f)))
     (glBindVertexArray 0)
     (vao n r f)))
 
@@ -107,11 +119,28 @@
                            (list->u32vector (flatten faces)))))
    (mesh verts faces p)))
 
-(define (draw m)
-  (draw_array (vao-id (mesh-vao m))
+(define/contract (make-line a b . rest)
+  (->* (vec3? vec3?) #:rest (listof vec3?) mesh?)
+  (define verts (append
+                  (list (vec3->list a) (vec3->list b))
+                  (map vec3->list rest)))
+  (define p (%gen-mesh-vao (list->f32vector (flatten verts)) #f))
+  (mesh verts #f p))
+
+(define (mesh-with-faces? m) (not (null? (mesh-faces m))))
+
+(define/contract (draw m)
+  (-> mesh-with-faces? void?)
+  (draw_elements (vao-id (mesh-vao m))
+                 (vao-array-id (mesh-vao m))
+                 (vao-element-array-id (mesh-vao m))
+                 (* 3 (length (mesh-faces m)))))
+
+(define (draw-lines m #:connected? (connected? #f))
+  (draw_lines (vao-id (mesh-vao m))
               (vao-array-id (mesh-vao m))
-              (vao-element-array-id (mesh-vao m))
-              (* 3 (length (mesh-faces m)))))
+              (length (mesh-verts m))
+              connected?))
 
 
 (define (make-shader vert-path frag-path fields)
@@ -120,11 +149,6 @@
   (let ((v (compile_shader (file->string vert-path) VERTEX-SHADER))
         (f (compile_shader (file->string frag-path) FRAGMENT-SHADER)))
     (shader (link_program v f) fields)))
-
-(define +gl-front-and-back+ #x0408)
-(define +gl-point+ #x1B00)
-(define +gl-line+ #x1B01)
-(define +gl-fill+ #x1B02)
 
 (define (with-shader shader fields thunk #:draw-mode (draw-mode 'fill))
   (glUseProgram (shader-id shader))
