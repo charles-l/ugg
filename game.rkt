@@ -7,6 +7,7 @@
 (provide run)
 
 (define a-shader (make-shader "vert.glsl" "frag.glsl" '((mvp . mat4))))
+(define mono-shader (make-shader "vert.glsl" "mono.glsl" '((mvp . mat4) (color . vec3))))
 
 (define m (read-mesh "./x.scm"))
 
@@ -23,7 +24,10 @@
     (set-vec3-y! pos (- (vec3-y pos) 1)))
   (clear_frame 0.1 0.2 0.3)
   (define mvp (calculate_mvp pos))
-  (with-shader a-shader `((mvp . ,mvp))
+  (with-shader a-shader `((mvp . ,mvp) (color . ,(make-vec3 1.0 1.0 1.0)))
+               (thunk
+                 (draw m)))
+  (with-shader mono-shader `((mvp . ,mvp) (color . ,(make-vec3 1.0 1.0 1.0))) #:draw-mode 'line
                (thunk
                  (draw m))))
 

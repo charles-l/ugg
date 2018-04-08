@@ -59,15 +59,15 @@
 (define-g gen_fvbo (_fun _pointer _uint32 _size -> _uint32))
 (define-g gen_uvbo (_fun _pointer _uint32 _size -> _uint32))
 (define-g draw_array (_fun _uint32 _uint32 _uint32 _size -> _void))
-(define-g glBindVertexArray (_fun _uint32 -> _void))
 (define-g compile_shader (_fun _string _uint32 -> _uint32))
 (define-g link_program (_fun _uint32 _uint32 -> _uint32))
+(define-g glBindVertexArray (_fun _uint32 -> _void))
 (define-g glUseProgram (_fun _uint -> _void))
 (define-g glUniformMatrix4fv (_fun _uint _size _bool _pointer -> _void))
+(define-g glUniform3f (_fun _int _float _float _float -> _void))
 (define-g glGetUniformLocation (_fun _uint _symbol -> _int))
+(define-g glPolygonMode (_fun _uint _uint -> _void))
 (define-g is_key_down (_fun _int -> _uint8))
-(define-g line_draw_mode (_fun -> _void))
-(define-g fill_draw_mode (_fun -> _void))
 (define-g calculate_mvp (_fun _vec3 -> _mat4))
 
 (struct vao (id array-id element-array-id))
@@ -121,8 +121,17 @@
         (f (compile_shader (file->string frag-path) FRAGMENT-SHADER)))
     (shader (link_program v f) fields)))
 
-(define (with-shader shader fields thunk)
+(define +gl-front-and-back+ #x0408)
+(define +gl-point+ #x1B00)
+(define +gl-line+ #x1B01)
+(define +gl-fill+ #x1B02)
+
+(define (with-shader shader fields thunk #:draw-mode (draw-mode 'fill))
   (glUseProgram (shader-id shader))
+  (case draw-mode
+    ((fill) (glPolygonMode +gl-front-and-back+ +gl-fill+))
+    ((line) (glPolygonMode +gl-front-and-back+ +gl-line+))
+    ((point) (glPolygonMode +gl-front-and-back+ +gl-point+)))
   (for ((f (shader-fields shader)))
     (cond
       ((assoc (car f) fields) => (λ (p)
@@ -131,7 +140,8 @@
                                           (val (cdr p)))
                                       (match type
                                         ('mat4 (glUniformMatrix4fv id 1 #f
-                                                                   (array-ptr (mat4-elements val))))))))
+                                                                   (array-ptr (mat4-elements val))))
+                                        ('vec3 (glUniform3f id (vec3-x val) (vec3-y val) (vec3-z val)))))))
       (else
         (error "required field not included" f))))
   (thunk)

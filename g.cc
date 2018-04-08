@@ -106,14 +106,6 @@ void init_screen(const char *caption) {
     glViewport(0, 0, w, h);
 }
 
-void line_draw_mode() {
-  glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-}
-
-void fill_draw_mode() {
-  glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-}
-
 SDL_Window* get_win() {
   return window;
 }
