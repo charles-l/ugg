@@ -8,6 +8,7 @@
 #include <GL/glew.h>
 #include "GL/gl.h"
 #include "GL/glut.h"
+#include <math.h>
 
 static const int SCREEN_FULLSCREEN = 0;
 static const int SCREEN_WIDTH  = 1280;
@@ -42,18 +43,25 @@ void dump_mat4(hmm_mat4 m) {
   }
 }
 
-hmm_mat4 calculate_mvp(hmm_vec3 pos) {
+#include <time.h>
+
+hmm_mat4 calculate_mvp(hmm_vec3 pos, float yaw, float pitch) {
   // HACK for clang version 5.0.1 (tags/RELEASE_501/final)
   // Have to assign these vectors to variables otherwise it throws
   // some nan junk in them when doing LookAt calculation. Probably a
   // bug with inlining.
   // TODO probably report that bug... :P
-  hmm_vec3 goal = HMM_Vec3(0, 0, 0);
   hmm_vec3 up = HMM_Vec3(0, 1, 0);
-  hmm_mat4 view = HMM_LookAt(pos, goal, up);
-  hmm_mat4 model = HMM_Mat4d(1.0);
+  hmm_vec3 right = HMM_Vec3(1, 0, 0);
+  hmm_mat4 yrot = HMM_Rotate(yaw, up);
+  hmm_mat4 prot = HMM_Rotate(pitch, right);
+
+  hmm_mat4 trans = HMM_Translate(pos);
+  hmm_mat4 view = prot * yrot * trans;
+  //dump_mat4(view);
+  hmm_mat4 model = HMM_Translate(HMM_Vec3(0, 0, 0));
+
   hmm_mat4 mvp = projection * view * model;
-  dump_mat4(view);
   return mvp;
 }
 
@@ -212,6 +220,7 @@ char is_key_down(int k) {
 
 void main_loop(void (*f)(void), void (*g)(SDL_Event event)) {
   SDL_Event event;
+  SDL_SetRelativeMouseMode(SDL_TRUE);
   while (true) {
     SDL_GL_SwapWindow(window);
     while (SDL_PollEvent(&event)) {

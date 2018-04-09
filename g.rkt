@@ -28,6 +28,11 @@
                  (y _float)
                  (z _float)))
 
+(define-cstruct _vec4
+                ((x _float)
+                 (y _float)
+                 (z _float)))
+
 (define-cstruct _mat4
                 ((elements (_array _float 4 4))))
 
@@ -37,7 +42,13 @@
                  (mod _uint16)
                  (_ _uint32)))
 
-(define _event-type (_enum '(keydown = #x300 keyup) _uint32 #:unknown identity))
+(define _event-type (_enum '(keydown = #x300
+                             keyup
+                             mouse-motion = #x400
+                             mouse-button-down
+                             mouse-button-up
+                             mouse-wheel)
+                           _uint32 #:unknown identity))
 
 (define-cstruct _sdl-keyboard-event
                 ((type _event-type)
@@ -50,9 +61,23 @@
                  (keysym _sdl-keysym)
                  (padding4 (_array _uint32 6))))
 
-(define-cstruct _sdl-event
+(define-cstruct _sdl-mouse-motion-event
                 ((type _event-type)
-                 (_ (_array _uint32 13))))
+                 (timestamp _uint32)
+                 (window-id _uint32)
+                 (which _uint32)
+                 (state _uint32)
+                 (x _int32)
+                 (y _int32)
+                 (xrel _int32)
+                 (yrel _int32)))
+
+(define _sdl-event (_union
+                     _event-type
+                     _sdl-keyboard-event
+                     _sdl-mouse-motion-event
+                     (_array _uint8 56) ; force size
+                     ))
 
 (define-g get_win (_fun c-> _win-ptr))
 (define-g init_screen (_fun _string c-> _void))
@@ -66,7 +91,7 @@
 (define-g compile_shader (_fun _string _uint32 c-> _uint32))
 (define-g link_program (_fun _uint32 _uint32 c-> _uint32))
 (define-g is_key_down (_fun _int c-> _uint8))
-(define-g calculate_mvp (_fun _vec3 c-> _mat4))
+(define-g calculate_mvp (_fun _vec3 _float _float c-> _mat4))
 
 (define-g glBindVertexArray (_fun _uint32 c-> _void))
 (define-g glUseProgram (_fun _uint c-> _void))
