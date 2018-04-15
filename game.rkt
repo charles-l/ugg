@@ -50,7 +50,8 @@
 
 (define projection (make_projection))
 
-(define m* HMM_MultiplyMat4)
+(define mid (make_id_mat))
+(define (m* . ms) (foldr HMM_MultiplyMat4 mid ms))
 
 (define (run dt)
   (define view (calculate_view cam-pos yaw pitch))

@@ -105,6 +105,7 @@
 (define-g calculate_view (_fun _vec3 _float _float c-> _mat4))
 (define-g make_translate_matrix (_fun _vec3 c-> _mat4))
 (define-g make_projection (_fun c-> _mat4))
+(define-g make_id_mat (_fun c-> _mat4))
 (define-g HMM_MultiplyMat4 (_fun _mat4 _mat4 c-> _mat4))
 
 
