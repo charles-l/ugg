@@ -91,7 +91,10 @@
 (define-g compile_shader (_fun _string _uint32 c-> _uint32))
 (define-g link_program (_fun _uint32 _uint32 c-> _uint32))
 (define-g is_key_down (_fun _int c-> _uint8))
-(define-g calculate_mvp (_fun _vec3 _float _float c-> _mat4))
+
+(define-g mat4_relative_move (_fun _mat4 _vec3 _float _float c-> _vec3))
+(define-g calculate_view (_fun _vec3 _float _float c-> _mat4))
+(define-g calculate_mvp (_fun _mat4 c-> _mat4))
 
 (define-g glBindVertexArray (_fun _uint32 c-> _void))
 (define-g glUseProgram (_fun _uint c-> _void))

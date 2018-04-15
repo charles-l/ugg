@@ -36,29 +36,35 @@ void dump_mat4(hmm_mat4 m) {
   printf("(");
   for(int i = 0; i < 4; i++) {
     for(int j = 0; j < 4; j++) {
-      printf("%f ", m.Elements[i][j]);
+      printf("%f ", m.Elements[j][i]);
     }
     if(i == 3) printf(")");
     printf("\n");
   }
 }
 
-#include <time.h>
+hmm_vec3 mat4_relative_move(hmm_mat4 m, hmm_vec3 cur_pos, float dx, float dz) {
+  hmm_vec3 f = HMM_Vec3(m.Elements[0][2], m.Elements[1][2], m.Elements[2][2]);
+  hmm_vec3 s = HMM_Vec3(m.Elements[0][0], m.Elements[1][0], m.Elements[2][0]);
+  return cur_pos + (-dz * f + dx * s);
+}
 
-hmm_mat4 calculate_mvp(hmm_vec3 pos, float yaw, float pitch) {
+hmm_mat4 calculate_view(hmm_vec3 pos, float yaw, float pitch) {
+  hmm_vec3 up = HMM_Vec3(0, 1, 0);
+  hmm_vec3 right = HMM_Vec3(1, 0, 0);
+  hmm_mat4 yrot = HMM_Rotate(yaw, up);
+  hmm_mat4 prot = HMM_Rotate(pitch, right);
+  hmm_mat4 trans = HMM_Translate(pos);
+  hmm_mat4 view = prot * yrot * trans;
+  return view;
+}
+
+hmm_mat4 calculate_mvp(hmm_mat4 view) {
   // HACK for clang version 5.0.1 (tags/RELEASE_501/final)
   // Have to assign these vectors to variables otherwise it throws
   // some nan junk in them when doing LookAt calculation. Probably a
   // bug with inlining.
   // TODO probably report that bug... :P
-  hmm_vec3 up = HMM_Vec3(0, 1, 0);
-  hmm_vec3 right = HMM_Vec3(1, 0, 0);
-  hmm_mat4 yrot = HMM_Rotate(yaw, up);
-  hmm_mat4 prot = HMM_Rotate(pitch, right);
-
-  hmm_mat4 trans = HMM_Translate(pos);
-  hmm_mat4 view = prot * yrot * trans;
-  //dump_mat4(view);
   hmm_mat4 model = HMM_Translate(HMM_Vec3(0, 0, 0));
 
   hmm_mat4 mvp = projection * view * model;
@@ -218,9 +224,11 @@ char is_key_down(int k) {
   return state[k];
 }
 
+SDL_bool should_lock_mouse = SDL_TRUE;
+
 void main_loop(void (*f)(void), void (*g)(SDL_Event event)) {
   SDL_Event event;
-  SDL_SetRelativeMouseMode(SDL_TRUE);
+  SDL_SetRelativeMouseMode(should_lock_mouse);
   while (true) {
     SDL_GL_SwapWindow(window);
     while (SDL_PollEvent(&event)) {
@@ -228,6 +236,12 @@ void main_loop(void (*f)(void), void (*g)(SDL_Event event)) {
         printf("quit\n");
         return;
       }
+#ifndef NDEBUG // DEBUG BINDINGS
+      if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE) {
+        should_lock_mouse = (SDL_bool) !should_lock_mouse;
+        SDL_SetRelativeMouseMode(should_lock_mouse);
+      }
+#endif
       g(event);
     }
     SDL_PumpEvents();
