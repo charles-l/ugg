@@ -2,22 +2,29 @@
 
 import bpy
 
-# grabbed from obj exporter
-def triangulate(m):
+# generate an assoc array using relevant data in the object
+def obj_assoc_array(ob):
+    m = ob.data
+    
+    # grabbed from obj exporter
     import bmesh
     bm = bmesh.new()
     bm.from_mesh(m)
     bmesh.ops.triangulate(bm, faces=bm.faces)
     bm.to_mesh(m)
-    bm.free()
-        
-# generate an assoc array using relevant data in the object
-def obj_assoc_array(ob):
-    m = ob.data
-    triangulate(m)
+
+    
     verts = [(v.co.x, v.co.y, v.co.z) for v in m.vertices]
-    faces = [list(f.vertices) for f in m.polygons]
-    return [ob.name, ['vertices', verts], ['faces', faces]]
+    faces = []
+    uvs = []
+    uv_layer = bm.loops.layers.uv.verify()
+    bm.faces.layers.tex.verify()
+    for f in bm.faces:
+        faces.append([x.index for x in f.verts])
+        for l in f.loops:
+            uvs.append(list(l[uv_layer].uv))
+    bm.free()
+    return [ob.name, ['vertices', verts], ['faces', faces], ['uvs', uvs]]
 
 # print an array as an sexpression (recursively)
 def print_array_as_sexp(a, o):
@@ -58,14 +65,14 @@ class ExportSexpression(bpy.types.Operator, ExportHelper):
     bl_idname = "export_scene.sexp"
     bl_label = "Export Sexpression"
     bl_options = {"PRESET"}
-    filename_ext = ".scm"
+    filename_ext = ".sexp"
     def execute(self, context):
         if not self.filepath:
             raise Exception("filepath not set")
         return write(self.filepath)
     
 def menu_func(self, context):
-    self.layout.operator(ExportSexpression.bl_idname, text="Export Sexpression (.scm)")
+    self.layout.operator(ExportSexpression.bl_idname, text="Export Sexpression (.sexp)")
         
 def register():
     bpy.utils.register_module(__name__)

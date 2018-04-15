@@ -9,6 +9,7 @@
 (define +max-debug-lines+ 32)
 (define a-shader (make-shader "vert.glsl" "frag.glsl" '((mvp . mat4) (color . vec3))))
 (define mono-shader (make-shader "vert.glsl" "mono.glsl" '((mvp . mat4) (color . vec3))))
+(load_texture "img.png" (shader-id a-shader) "tex")
 
 (define m (read-mesh "./x.sexp"))
 (define m-pos (make_translate_matrix (make-vec3 0.0 4.0 0.0)))
@@ -71,7 +72,7 @@
   (with-shader a-shader `((mvp . ,(m* vp m-pos)) (color . ,(make-vec3 1.0 1.0 1.0)))
                (thunk
                  (draw m)))
-  (with-shader mono-shader `((mvp . ,vp) (color . ,(make-vec3 1.0 0.0 0.0)))
+  (with-shader a-shader `((mvp . ,vp) (color . ,(make-vec3 1.0 0.0 0.0)))
                (thunk
                  (draw p)))
   (with-shader mono-shader `((mvp . ,vp) (color . ,(make-vec3 1.0 1.0 1.0))) #:draw-mode 'line

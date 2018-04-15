@@ -5,6 +5,9 @@
 #include "HandmadeMath.h"
 #include <SDL2/SDL.h>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 #include <GL/glew.h>
 #include "GL/gl.h"
 #include "GL/glut.h"
@@ -173,8 +176,6 @@ static inline void bind_vao_and_vbo(unsigned int vao, unsigned int array_id, siz
   { // attribute 0: vertices
     glEnableVertexAttribArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, array_id);
-    // !!! assumes tris
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
   }
 }
 
@@ -191,29 +192,74 @@ void draw_lines(unsigned int vao, unsigned int array_id, size_t n, bool connecte
   unbind_vao_and_vbo();
 }
 
-void draw_elements(unsigned int vao, unsigned int array_id, unsigned int element_array_id, size_t n) {
-  bind_vao_and_vbo(vao, array_id, n);
-  {
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, element_array_id);
-    glDrawElements(GL_TRIANGLES, n, GL_UNSIGNED_INT, NULL);
-  }
-  unbind_vao_and_vbo();
-}
-
-unsigned int gen_uvbo(unsigned int *buf, unsigned int type, size_t n) {
+unsigned int load_texture(char *fname, unsigned int shader_id, char *uniform_name) {
   unsigned int id;
-  glGenBuffers(1, &id);
-  glBindBuffer(type, id);
-  glBufferData(type, sizeof(unsigned int) * n, buf, GL_STATIC_DRAW);
+  glGenTextures(1, &id);
+
+  int w, h;
+  unsigned char *img;
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, id);
+  img = stbi_load(fname, &w, &h, NULL, STBI_rgb);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, img);
+  stbi_image_free(img);
+  glUniform1i(glGetUniformLocation(shader_id, uniform_name), 0);
+
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
   return id;
 }
 
-unsigned int gen_fvbo(float *buf, unsigned int type, size_t n) {
+void draw_elements(unsigned int vao, unsigned int array_id, unsigned int element_array_id, int uv_array_id, size_t n) {
+  bind_vao_and_vbo(vao, array_id, n);
+  if(uv_array_id != -1) {
+    glEnableVertexAttribArray(1);
+    glBindBuffer(GL_ARRAY_BUFFER, uv_array_id);
+  }
+
+  {
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, element_array_id);
+    glDrawElements(GL_TRIANGLES, n, GL_UNSIGNED_INT, NULL);
+  }
+
+  if(uv_array_id != -1) {
+    glDisableVertexAttribArray(1);
+  }
+  unbind_vao_and_vbo();
+}
+
+unsigned int gen_element_vbo(unsigned int *buf, size_t n) {
   unsigned int id;
   glGenBuffers(1, &id);
-  glBindBuffer(type, id);
-  glBufferData(type, sizeof(float) * n, buf, GL_STATIC_DRAW);
+
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, id);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * n, buf, GL_STATIC_DRAW);
+
+  return id;
+}
+
+unsigned int gen_vert_vbo(float *buf, size_t n) {
+  unsigned int id;
+  glGenBuffers(1, &id);
+
+  // !!! assumes tris
+  glBindBuffer(GL_ARRAY_BUFFER, id);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(float) * n, buf, GL_STATIC_DRAW);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+
+  return id;
+}
+
+unsigned int gen_uv_vbo(float *buf, size_t n) {
+  unsigned int id;
+  glGenBuffers(1, &id);
+
+  glBindBuffer(GL_ARRAY_BUFFER, id);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(float) * n, buf, GL_STATIC_DRAW);
+  glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, NULL);
 
   return id;
 }

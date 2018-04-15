@@ -93,9 +93,10 @@
 (define-g main_loop (_fun (_fun _float c-> _void) (_fun _sdl-event _float c-> _void) c-> _void))
 (define-g gen_vao (_fun c-> _uint32))
 (define-g clear_frame (_fun _float _float _float c-> _void))
-(define-g gen_fvbo (_fun _pointer _uint32 _size c-> _uint32))
-(define-g gen_uvbo (_fun _pointer _uint32 _size c-> _uint32))
-(define-g draw_elements (_fun _uint32 _uint32 _uint32 _size c-> _void))
+(define-g gen_vert_vbo (_fun _pointer _size c-> _uint32))
+(define-g gen_uv_vbo (_fun _pointer _size c-> _uint32))
+(define-g gen_element_vbo (_fun _pointer _size c-> _uint32))
+(define-g draw_elements (_fun _uint32 _uint32 _uint32 _int32 _size c-> _void))
 (define-g draw_lines (_fun _uint32 _uint32 _size _bool c-> _void))
 (define-g compile_shader (_fun _string _uint32 c-> _uint32))
 (define-g link_program (_fun _uint32 _uint32 c-> _uint32))
@@ -107,7 +108,7 @@
 (define-g make_projection (_fun c-> _mat4))
 (define-g make_id_mat (_fun c-> _mat4))
 (define-g HMM_MultiplyMat4 (_fun _mat4 _mat4 c-> _mat4))
-
+(define-g load_texture (_fun _string _uint32 _string c-> _uint32))
 
 (define-g glBindVertexArray (_fun _uint32 c-> _void))
 (define-g glUseProgram (_fun _uint c-> _void))
@@ -125,9 +126,9 @@
 (define (warn f msg)
   (fprintf (current-error-port) "warning (~a): ~a\n" f msg))
 
-(struct vao (id array-id element-array-id))
+(struct vao (id array-id element-array-id uv-array-id))
 
-(struct mesh ((verts #:mutable) faces vao) #:transparent)
+(struct mesh ((verts #:mutable) faces uvs vao) #:transparent)
 
 (struct shader (id fields))
 
@@ -135,22 +136,22 @@
   (not (zero? (is_key_down key))))
 
 ; XXX currently no support for oversizing elements buffer - only for extra verts atm
-(define (%gen-mesh-vao flat-vertex-coords flat-face-indices #:override-verts-n (override-verts-n #f))
-  (define +gl-array-buffer+ #x8892)
-  (define +gl-element-array-buffer+ #x8893)
+(define (%gen-mesh-vao flat-vertex-coords flat-face-indices (flat-uv-coords #f) #:override-verts-n (override-verts-n #f))
   (let* ((n (gen_vao))
-         (r (gen_fvbo (f32vector->cpointer flat-vertex-coords)
-                      +gl-array-buffer+
-                      (if override-verts-n
-                        override-verts-n
-                        (f32vector-length flat-vertex-coords))))
+         (r (gen_vert_vbo (f32vector->cpointer flat-vertex-coords)
+                          (if override-verts-n
+                            override-verts-n
+                            (f32vector-length flat-vertex-coords))))
          (f (if flat-face-indices
-              (gen_uvbo (u32vector->cpointer flat-face-indices)
-                        +gl-element-array-buffer+
-                        (u32vector-length flat-face-indices))
+              (gen_element_vbo (u32vector->cpointer flat-face-indices)
+                               (u32vector-length flat-face-indices))
+              #f))
+         (u (if flat-uv-coords
+              (gen_uv_vbo (f32vector->cpointer flat-uv-coords)
+                          (f32vector-length flat-uv-coords))
               #f)))
     (glBindVertexArray 0)
-    (vao n r f)))
+    (vao n r f u)))
 
 ; FIXME add bounds check
 (define (%append-verts! m verts)
@@ -171,9 +172,11 @@
   (let* ((o (cdr (with-input-from-file f (thunk (read)))))
          (verts (cadr (assoc 'vertices o)))
          (faces (cadr (assoc 'faces o)))
+         (uvs (cadr (assoc 'uvs o)))
          (p (%gen-mesh-vao (list->f32vector (flatten verts))
-                           (list->u32vector (flatten faces)))))
-   (mesh verts faces p)))
+                           (list->u32vector (flatten faces))
+                           (list->f32vector (flatten uvs)))))
+    (mesh verts faces uvs p)))
 
 (define (make-plane side-length)
   (define s (exact->inexact side-length))
@@ -185,10 +188,16 @@
   (define faces
     `((0 1 2)
       (0 2 3)))
+  (define uvs
+    '((0.0 1.0)
+      (0.0 0.0)
+      (1.0 0.0)
+      (1.0 1.0)))
   (define p (%gen-mesh-vao
               (list->f32vector (flatten verts))
-              (list->u32vector (flatten faces))))
-  (mesh verts faces p))
+              (list->u32vector (flatten faces))
+              (list->f32vector (flatten uvs))))
+  (mesh verts faces uvs p))
 
 (define/contract (make-line #:buffer-n (buffer-n #f) a b . rest)
   (->* (vec3? vec3?) (#:buffer-n positive-integer?) #:rest (listof vec3?) mesh?)
@@ -198,7 +207,7 @@
   (define p (%gen-mesh-vao (list->f32vector (flatten verts))
                            #:override-verts-n (if buffer-n buffer-n #f)
                            #f))
-  (mesh verts #f p))
+  (mesh verts #f #f p))
 
 (define (mesh-with-faces? m) (not (null? (mesh-faces m))))
 
@@ -207,6 +216,7 @@
   (draw_elements (vao-id (mesh-vao m))
                  (vao-array-id (mesh-vao m))
                  (vao-element-array-id (mesh-vao m))
+                 (or (vao-uv-array-id (mesh-vao m)) -1)
                  (* 3 (length (mesh-faces m)))))
 
 (define (draw-lines m #:connected? (connected? #t))
@@ -222,9 +232,12 @@
 (define (make-shader vert-path frag-path fields)
   (define FRAGMENT-SHADER #x8B30)
   (define VERTEX-SHADER #x8B31)
-  (let ((v (compile_shader (file->string vert-path) VERTEX-SHADER))
-        (f (compile_shader (file->string frag-path) FRAGMENT-SHADER)))
-    (shader (link_program v f) fields)))
+  (let* ((v (compile_shader (file->string vert-path) VERTEX-SHADER))
+         (f (compile_shader (file->string frag-path) FRAGMENT-SHADER))
+         (l (link_program v f)))
+    (when (eq? l -1)
+      (error 'make-shader "failed to link shader"))
+    (shader l fields)))
 
 (define (with-shader shader fields thunk #:draw-mode (draw-mode 'fill))
   (glUseProgram (shader-id shader))
