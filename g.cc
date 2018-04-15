@@ -43,10 +43,10 @@ void dump_mat4(hmm_mat4 m) {
   }
 }
 
-hmm_vec3 mat4_relative_move(hmm_mat4 m, hmm_vec3 cur_pos, float dx, float dz) {
+hmm_vec3 mat4_relative_move(hmm_mat4 m, hmm_vec3 cur_pos, float dx, float dz, float speed) {
   hmm_vec3 f = HMM_Vec3(m.Elements[0][2], m.Elements[1][2], m.Elements[2][2]);
   hmm_vec3 s = HMM_Vec3(m.Elements[0][0], m.Elements[1][0], m.Elements[2][0]);
-  return cur_pos + (-dz * f + dx * s);
+  return cur_pos + speed * (-dz * f + dx * s);
 }
 
 hmm_mat4 calculate_view(hmm_vec3 pos, float yaw, float pitch) {
@@ -226,10 +226,16 @@ char is_key_down(int k) {
 
 SDL_bool should_lock_mouse = SDL_TRUE;
 
-void main_loop(void (*f)(void), void (*g)(SDL_Event event)) {
+void main_loop(void (*f)(float), void (*g)(SDL_Event, float)) {
   SDL_Event event;
   SDL_SetRelativeMouseMode(should_lock_mouse);
+  Uint64 last = 0;
+  Uint64 now = SDL_GetPerformanceCounter();
   while (true) {
+    last = now;
+    now = SDL_GetPerformanceCounter();
+    float dt = ((float)(now - last)) / SDL_GetPerformanceFrequency();
+
     SDL_GL_SwapWindow(window);
     while (SDL_PollEvent(&event)) {
       if (event.type == SDL_QUIT) {
@@ -242,10 +248,10 @@ void main_loop(void (*f)(void), void (*g)(SDL_Event event)) {
         SDL_SetRelativeMouseMode(should_lock_mouse);
       }
 #endif
-      g(event);
+      g(event, dt);
     }
     SDL_PumpEvents();
-    f();
+    f(dt);
   }
 }
 

@@ -36,9 +36,18 @@
 (define-cstruct _mat4
                 ((elements (_array _float 4 4))))
 
+(define _sdl-scancode (_enum '(
+                               a = 4 b c d e f g h i j k l m n o p q r s t u v w x y z
+                               right = 79 left down up)
+                             _uint32 #:unknown identity))
+
+(define _sdl-keycode (_enum '(right = 79 left down up
+                                    a = 97 b c d e f g h i j k l m n o p q r s t u v w x y z)
+                            _uint32 #:unknown identity))
+
 (define-cstruct _sdl-keysym
                 ((scancode _int32)
-                 (keycode (_enum '(right = 79 left down up)))
+                 (keycode _sdl-keycode)
                  (mod _uint16)
                  (_ _uint32)))
 
@@ -81,7 +90,7 @@
 
 (define-g get_win (_fun c-> _win-ptr))
 (define-g init_screen (_fun _string c-> _void))
-(define-g main_loop (_fun (_fun c-> _void) (_fun _sdl-event c-> _void) c-> _void))
+(define-g main_loop (_fun (_fun _float c-> _void) (_fun _sdl-event _float c-> _void) c-> _void))
 (define-g gen_vao (_fun c-> _uint32))
 (define-g clear_frame (_fun _float _float _float c-> _void))
 (define-g gen_fvbo (_fun _pointer _uint32 _size c-> _uint32))
@@ -90,9 +99,9 @@
 (define-g draw_lines (_fun _uint32 _uint32 _size _bool c-> _void))
 (define-g compile_shader (_fun _string _uint32 c-> _uint32))
 (define-g link_program (_fun _uint32 _uint32 c-> _uint32))
-(define-g is_key_down (_fun _int c-> _uint8))
+(define-g is_key_down (_fun _sdl-scancode c-> _uint8))
 
-(define-g mat4_relative_move (_fun _mat4 _vec3 _float _float c-> _vec3))
+(define-g mat4_relative_move (_fun _mat4 _vec3 _float _float _float c-> _vec3))
 (define-g calculate_view (_fun _vec3 _float _float c-> _mat4))
 (define-g calculate_mvp (_fun _mat4 c-> _mat4))
 
@@ -119,11 +128,7 @@
 (struct shader (id fields))
 
 (define (key-down? key)
-  (case key
-    ((right) (not (zero? (is_key_down 79))))
-    ((left) (not (zero? (is_key_down 80))))
-    ((down) (not (zero? (is_key_down 81))))
-    ((up) (not (zero? (is_key_down 82))))))
+  (not (zero? (is_key_down key))))
 
 ; XXX currently no support for oversizing elements buffer - only for extra verts atm
 (define (%gen-mesh-vao flat-vertex-coords flat-face-indices #:override-verts-n (override-verts-n #f))

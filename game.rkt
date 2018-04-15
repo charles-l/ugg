@@ -24,36 +24,38 @@
 (define yaw 0.0)
 
 (define pitch 0.0)
-(define +pitch-max+ 30)
-(define +pitch-min+ -30)
+(define +pitch-max+ 90)
+(define +pitch-min+ -90)
 (define (clamp a b v)
   (max (min b v) a))
 
 (require ffi/unsafe)
-(define (handler event)
+(define (handler event dt)
   (case (union-ref event 0)
     ((mouse-motion)
      (let ((e (union-ref event 2)))
        (set! yaw (+ yaw
-                    (/ (exact->inexact
-                         (sdl-mouse-motion-event-xrel e)) 100)))
+                    (* dt 200
+                       (/ (exact->inexact
+                            (sdl-mouse-motion-event-xrel e)) 100))))
        (set! pitch (clamp
                      +pitch-min+
                      +pitch-max+
                      (+ pitch
-                        (/ (exact->inexact
-                             (sdl-mouse-motion-event-yrel e)) 100))))))))
+                        (* dt 200
+                           (/ (exact->inexact
+                                (sdl-mouse-motion-event-yrel e)) 100)))))))))
 
-(define (run)
+(define (run dt)
   (define view (calculate_view cam-pos yaw pitch))
-  (when (key-down? 'up)
-    (set! cam-pos (mat4_relative_move view cam-pos 0.0 -0.5)))
-  (when (key-down? 'down)
-    (set! cam-pos (mat4_relative_move view cam-pos 0.0 0.5)))
-  (when (key-down? 'right)
-    (set! cam-pos (mat4_relative_move view cam-pos -0.5 0.0)))
-  (when (key-down? 'left)
-    (set! cam-pos (mat4_relative_move view cam-pos 0.5 0.0)))
+  (when (key-down? 'w)
+    (set! cam-pos (mat4_relative_move view cam-pos 0.0 -0.5 (* dt 10))))
+  (when (key-down? 's)
+    (set! cam-pos (mat4_relative_move view cam-pos 0.0 0.5 (* dt 10))))
+  (when (key-down? 'd)
+    (set! cam-pos (mat4_relative_move view cam-pos -0.5 0.0 (* dt 10))))
+  (when (key-down? 'a)
+    (set! cam-pos (mat4_relative_move view cam-pos 0.5 0.0 (* dt 10))))
   (define mvp (calculate_mvp view))
 
 #;(%append-verts! *debug* `((,(exact->inexact (random 4)) ,(exact->inexact (random 4)) ,(exact->inexact (random 4)))
