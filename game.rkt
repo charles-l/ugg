@@ -7,10 +7,12 @@
 (provide run handler yaw)
 
 (define +max-debug-lines+ 32)
-(define a-shader (make-shader "vert.glsl" "frag.glsl" '((mvp . mat4))))
+(define a-shader (make-shader "vert.glsl" "frag.glsl" '((mvp . mat4) (color . vec3))))
 (define mono-shader (make-shader "vert.glsl" "mono.glsl" '((mvp . mat4) (color . vec3))))
 
 (define m (read-mesh "./x.sexp"))
+(define m-pos (make_translate_matrix (make-vec3 0.0 4.0 0.0)))
+(define p (make-plane 4))
 
 (define *debug*
   (make-line (make-vec3 0.0 0.0 0.0)
@@ -46,8 +48,13 @@
                            (/ (exact->inexact
                                 (sdl-mouse-motion-event-yrel e)) 100)))))))))
 
+(define projection (make_projection))
+
+(define m* HMM_MultiplyMat4)
+
 (define (run dt)
   (define view (calculate_view cam-pos yaw pitch))
+  (define vp (m* projection view))
   (when (key-down? 'w)
     (set! cam-pos (mat4_relative_move view cam-pos 0.0 -0.5 (* dt 10))))
   (when (key-down? 's)
@@ -56,15 +63,17 @@
     (set! cam-pos (mat4_relative_move view cam-pos -0.5 0.0 (* dt 10))))
   (when (key-down? 'a)
     (set! cam-pos (mat4_relative_move view cam-pos 0.5 0.0 (* dt 10))))
-  (define mvp (calculate_mvp view))
 
 #;(%append-verts! *debug* `((,(exact->inexact (random 4)) ,(exact->inexact (random 4)) ,(exact->inexact (random 4)))
                               (,(exact->inexact (random 4)) ,(exact->inexact (random 4)) ,(exact->inexact (random 4)))))
   (clear_frame 0.1 0.2 0.3)
-  (with-shader a-shader `((mvp . ,mvp) (color . ,(make-vec3 1.0 1.0 1.0)))
+  (with-shader a-shader `((mvp . ,(m* vp m-pos)) (color . ,(make-vec3 1.0 1.0 1.0)))
                (thunk
                  (draw m)))
-  (with-shader mono-shader `((mvp . ,mvp) (color . ,(make-vec3 1.0 1.0 1.0))) #:draw-mode 'line
+  (with-shader mono-shader `((mvp . ,vp) (color . ,(make-vec3 1.0 0.0 0.0)))
+               (thunk
+                 (draw p)))
+  (with-shader mono-shader `((mvp . ,vp) (color . ,(make-vec3 1.0 1.0 1.0))) #:draw-mode 'line
                (thunk
                  (draw-lines *debug* #:connected? #f))))
 

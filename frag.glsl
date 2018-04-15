@@ -1,6 +1,7 @@
 #version 400 core
-out vec3 color;
+out vec3 ocolor;
 in vec3 normal;
+uniform vec3 color;
 void main(){
-  color = vec3(1,0,0) * abs(normal);
+  ocolor = color * abs(normal);
 }

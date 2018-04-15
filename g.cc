@@ -30,8 +30,6 @@ unsigned int gen_vao() {
   return id;
 }
 
-static hmm_mat4 projection;
-
 void dump_mat4(hmm_mat4 m) {
   printf("(");
   for(int i = 0; i < 4; i++) {
@@ -59,20 +57,17 @@ hmm_mat4 calculate_view(hmm_vec3 pos, float yaw, float pitch) {
   return view;
 }
 
-hmm_mat4 calculate_mvp(hmm_mat4 view) {
-  // HACK for clang version 5.0.1 (tags/RELEASE_501/final)
-  // Have to assign these vectors to variables otherwise it throws
-  // some nan junk in them when doing LookAt calculation. Probably a
-  // bug with inlining.
-  // TODO probably report that bug... :P
-  hmm_mat4 model = HMM_Translate(HMM_Vec3(0, 0, 0));
+hmm_mat4 make_translate_matrix(hmm_vec3 v) {
+  hmm_mat4 m = HMM_Translate(v);
+  return m;
+}
 
-  hmm_mat4 mvp = projection * view * model;
-  return mvp;
+hmm_mat4 make_projection(){
+    hmm_mat4 projection = HMM_Perspective(45.0f, ((float) SCREEN_WIDTH / (float) SCREEN_HEIGHT), 0.1f, 100.f);
+    return projection;
 }
 
 void init_screen(const char *caption) {
-    projection = HMM_Perspective(45.0f, ((float) SCREEN_WIDTH / (float) SCREEN_HEIGHT), 0.1f, 100.f);
     if (SDL_Init(SDL_INIT_VIDEO) < 0)
         sdl_die("Couldn't initialize SDL");
     atexit (SDL_Quit);

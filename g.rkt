@@ -103,7 +103,10 @@
 
 (define-g mat4_relative_move (_fun _mat4 _vec3 _float _float _float c-> _vec3))
 (define-g calculate_view (_fun _vec3 _float _float c-> _mat4))
-(define-g calculate_mvp (_fun _mat4 c-> _mat4))
+(define-g make_translate_matrix (_fun _vec3 c-> _mat4))
+(define-g make_projection (_fun c-> _mat4))
+(define-g HMM_MultiplyMat4 (_fun _mat4 _mat4 c-> _mat4))
+
 
 (define-g glBindVertexArray (_fun _uint32 c-> _void))
 (define-g glUseProgram (_fun _uint c-> _void))
@@ -170,6 +173,21 @@
          (p (%gen-mesh-vao (list->f32vector (flatten verts))
                            (list->u32vector (flatten faces)))))
    (mesh verts faces p)))
+
+(define (make-plane side-length)
+  (define s (exact->inexact side-length))
+  (define verts
+    `((,(- s) 0.0 ,(+ s))
+      (,(- s) 0.0 ,(- s))
+      (,(+ s) 0.0 ,(- s))
+      (,(+ s) 0.0 ,(+ s))))
+  (define faces
+    `((0 1 2)
+      (0 2 3)))
+  (define p (%gen-mesh-vao
+              (list->f32vector (flatten verts))
+              (list->u32vector (flatten faces))))
+  (mesh verts faces p))
 
 (define/contract (make-line #:buffer-n (buffer-n #f) a b . rest)
   (->* (vec3? vec3?) (#:buffer-n positive-integer?) #:rest (listof vec3?) mesh?)
