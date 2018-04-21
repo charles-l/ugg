@@ -2,6 +2,7 @@
 
 (require reloadable)
 (require ffi/vector)
+(require "math.rkt")
 (require "g.rkt")
 
 (provide run handler yaw)
@@ -12,7 +13,7 @@
 (load_texture "img.png" (shader-id a-shader) "tex")
 
 (define m (read-mesh "./x.sexp"))
-(define m-pos (make_translate_matrix (make-vec3 0.0 4.0 0.0)))
+(define m-pos (translate-m 0.0 4.0 0.0))
 (define p (make-plane 4))
 
 (define *debug*
@@ -29,8 +30,6 @@
 (define pitch 0.0)
 (define +pitch-max+ 90)
 (define +pitch-min+ -90)
-(define (clamp a b v)
-  (max (min b v) a))
 
 (require ffi/unsafe)
 (define (handler event dt)

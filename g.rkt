@@ -1,5 +1,6 @@
 #lang racket
 (require
+  "math.rkt"
   racket/contract
   (rename-in ffi/unsafe (-> c->))
   ffi/unsafe/define
@@ -22,19 +23,6 @@
 (define-ffi-definer define-g (ffi-lib "./g"))
 
 (define _win-ptr (_cpointer 'SDL_Window))
-
-(define-cstruct _vec3
-                ((x _float)
-                 (y _float)
-                 (z _float)))
-
-(define-cstruct _vec4
-                ((x _float)
-                 (y _float)
-                 (z _float)))
-
-(define-cstruct _mat4
-                ((elements (_array _float 4 4))))
 
 (define _sdl-scancode (_enum '(
                                a = 4 b c d e f g h i j k l m n o p q r s t u v w x y z
@@ -101,13 +89,6 @@
 (define-g compile_shader (_fun _string _uint32 c-> _uint32))
 (define-g link_program (_fun _uint32 _uint32 c-> _uint32))
 (define-g is_key_down (_fun _sdl-scancode c-> _uint8))
-
-(define-g mat4_relative_move (_fun _mat4 _vec3 _float _float _float c-> _vec3))
-(define-g calculate_view (_fun _vec3 _float _float c-> _mat4))
-(define-g make_translate_matrix (_fun _vec3 c-> _mat4))
-(define-g make_projection (_fun c-> _mat4))
-(define-g make_id_mat (_fun c-> _mat4))
-(define-g HMM_MultiplyMat4 (_fun _mat4 _mat4 c-> _mat4))
 (define-g load_texture (_fun _string _uint32 _string c-> _uint32))
 
 (define-g glBindVertexArray (_fun _uint32 c-> _void))

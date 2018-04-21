@@ -50,8 +50,16 @@ hmm_vec3 mat4_relative_move(hmm_mat4 m, hmm_vec3 cur_pos, float dx, float dz, fl
   return cur_pos + speed * (-dz * f + dx * s);
 }
 
+hmm_mat4 make_zero_mat() {
+  return HMM_Mat4();
+}
+
 hmm_mat4 make_id_mat() {
   return HMM_Mat4d(1.0);
+}
+
+hmm_mat4 add_mat(hmm_mat4 a, hmm_mat4 b) {
+  return a + b;
 }
 
 hmm_mat4 calculate_view(hmm_vec3 pos, float yaw, float pitch) {

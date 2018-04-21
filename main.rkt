@@ -1,5 +1,6 @@
 #lang racket
 (require reloadable)
+(require "data.rkt")
 (require "g.rkt")
 
 (require racket/tcp)

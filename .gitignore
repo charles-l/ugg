@@ -4,3 +4,4 @@
 game
 *.so
 *.trace
+compiled/
