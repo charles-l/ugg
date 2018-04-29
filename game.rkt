@@ -4,17 +4,37 @@
 (require ffi/vector)
 (require "math.rkt")
 (require "g.rkt")
+(require "data.rkt")
+(require "systems.rkt")
 
 (provide run handler yaw)
 
 (define +max-debug-lines+ 32)
-(define a-shader (make-shader "vert.glsl" "frag.glsl" '((mvp . mat4) (color . vec3))))
-(define mono-shader (make-shader "vert.glsl" "mono.glsl" '((mvp . mat4) (color . vec3))))
-(load_texture "img.png" (shader-id a-shader) "tex")
+#;(define mono-shader (make-shader "vert.glsl" "mono.glsl" (list (mvp . mat4) (color . vec3))))
+
+(module mydata typed/racket
+  (provide (all-defined-out))
+  (require "data.rkt")
+  (require "math.rkt")
+  (require/typed "systems.rkt"
+                 (read-mesh (String -> mesh-c))
+                 (make-plane (Nonnegative-Integer -> mesh-c)))
+  (define-shader a "vert.glsl" "frag.glsl"
+                 (mvp : Mat4)
+                 (color : Vec3)
+                 (tex : Texture))
+
+  (define-entity monkey
+                 (mesh (read-mesh "./x.sexp"))
+                 (pos (transform (v 0.0 4.0 0.0))))
+
+  (define-entity p
+                 (mesh (make-plane 4))
+                 (pos (transform (v 0.0 0.0 0.0)))))
+(require 'mydata)
 
 (define m (read-mesh "./x.sexp"))
-(define m-pos (translate-m 0.0 4.0 0.0))
-(define p (make-plane 4))
+(define t (load_texture "img.png"))
 
 (define *debug*
   (make-line (make-vec3 0.0 0.0 0.0)
@@ -50,9 +70,6 @@
 
 (define projection (make_projection))
 
-(define mid (make_id_mat))
-(define (m* . ms) (foldr HMM_MultiplyMat4 mid ms))
-
 (define (run dt)
   (define view (calculate_view cam-pos yaw pitch))
   (define vp (m* projection view))
@@ -65,16 +82,7 @@
   (when (key-down? 'a)
     (set! cam-pos (mat4_relative_move view cam-pos 0.5 0.0 (* dt 10))))
 
-#;(%append-verts! *debug* `((,(exact->inexact (random 4)) ,(exact->inexact (random 4)) ,(exact->inexact (random 4)))
-                              (,(exact->inexact (random 4)) ,(exact->inexact (random 4)) ,(exact->inexact (random 4)))))
   (clear_frame 0.1 0.2 0.3)
-  (with-shader a-shader `((mvp . ,(m* vp m-pos)) (color . ,(make-vec3 1.0 1.0 1.0)))
-               (thunk
-                 (draw m)))
-  (with-shader a-shader `((mvp . ,vp) (color . ,(make-vec3 1.0 0.0 0.0)))
-               (thunk
-                 (draw p)))
-  (with-shader mono-shader `((mvp . ,vp) (color . ,(make-vec3 1.0 1.0 1.0))) #:draw-mode 'line
-               (thunk
-                 (draw-lines *debug* #:connected? #f))))
+  (use-a-shader! (m* vp (translate-m 2.0 2.0 2.0)) (v 1.0 1.0 1.0) t)
+  (draw m))
 

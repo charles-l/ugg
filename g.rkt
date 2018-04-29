@@ -4,19 +4,7 @@
   racket/contract
   (rename-in ffi/unsafe (-> c->))
   ffi/unsafe/define
-  ffi/vector
-  (only-in srfi/1 iota)
-  (only-in rnrs/base-6 mod))
-
-#;(provide init_screen
-         make-shader
-         read-mesh
-         glUseProgram
-         glGetUniformLocation
-         main_loop
-         clear_frame
-         key_down
-         draw)
+  ffi/vector)
 
 (provide (all-defined-out))
 
@@ -89,12 +77,15 @@
 (define-g compile_shader (_fun _string _uint32 c-> _uint32))
 (define-g link_program (_fun _uint32 _uint32 c-> _uint32))
 (define-g is_key_down (_fun _sdl-scancode c-> _uint8))
-(define-g load_texture (_fun _string _uint32 _string c-> _uint32))
+(define-g load_texture (_fun _string c-> _uint32))
 
 (define-g glBindVertexArray (_fun _uint32 c-> _void))
 (define-g glUseProgram (_fun _uint c-> _void))
 (define-g glUniformMatrix4fv (_fun _uint _size _bool _pointer c-> _void))
+(define-g glUniform2f (_fun _int _float _float c-> _void))
 (define-g glUniform3f (_fun _int _float _float _float c-> _void))
+(define-g glUniform4f (_fun _int _float _float _float _float c-> _void))
+(define-g glUniform1i (_fun _int _int c-> _void))
 (define-g glGetUniformLocation (_fun _uint _symbol c-> _int))
 (define-g glPolygonMode (_fun _uint _uint c-> _void))
 (define-g glBufferSubData (_fun _uint _intptr _ptrdiff _pointer c-> _void))
@@ -107,120 +98,11 @@
 (define (warn f msg)
   (fprintf (current-error-port) "warning (~a): ~a\n" f msg))
 
-(struct vao (id array-id element-array-id uv-array-id))
-
-(struct mesh ((verts #:mutable) faces uvs vao) #:transparent)
-
-(struct shader (id fields))
-
 (define (key-down? key)
   (not (zero? (is_key_down key))))
 
-; XXX currently no support for oversizing elements buffer - only for extra verts atm
-(define (%gen-mesh-vao flat-vertex-coords flat-face-indices (flat-uv-coords #f) #:override-verts-n (override-verts-n #f))
-  (let* ((n (gen_vao))
-         (r (gen_vert_vbo (f32vector->cpointer flat-vertex-coords)
-                          (if override-verts-n
-                            override-verts-n
-                            (f32vector-length flat-vertex-coords))))
-         (f (if flat-face-indices
-              (gen_element_vbo (u32vector->cpointer flat-face-indices)
-                               (u32vector-length flat-face-indices))
-              #f))
-         (u (if flat-uv-coords
-              (gen_uv_vbo (f32vector->cpointer flat-uv-coords)
-                          (f32vector-length flat-uv-coords))
-              #f)))
-    (glBindVertexArray 0)
-    (vao n r f u)))
 
-; FIXME add bounds check
-(define (%append-verts! m verts)
-  (let ((n (length (mesh-verts m))))
-    (glBufferSubData
-      (vao-id (mesh-vao m))
-      n
-      (length verts)
-      (f32vector->cpointer (list->f32vector (flatten verts))))
-    (set-mesh-verts! m (append (mesh-verts m) verts))))
-
-
-(define (read-mesh f)
-  ; XXX assumes only one object
-  ;
-  ; Could get a speedup if using vectors rather than lists if needed?
-
-  (let* ((o (cdr (with-input-from-file f (thunk (read)))))
-         (verts (cadr (assoc 'vertices o)))
-         (faces (cadr (assoc 'faces o)))
-         (uvs (cadr (assoc 'uvs o)))
-         (p (%gen-mesh-vao (list->f32vector (flatten verts))
-                           (list->u32vector (flatten faces))
-                           (list->f32vector (flatten uvs)))))
-    (mesh verts faces uvs p)))
-
-(define (make-plane side-length)
-  (define s (exact->inexact side-length))
-  (define verts
-    `((,(- s) 0.0 ,(+ s))
-      (,(- s) 0.0 ,(- s))
-      (,(+ s) 0.0 ,(- s))
-      (,(+ s) 0.0 ,(+ s))))
-  (define faces
-    `((0 1 2)
-      (0 2 3)))
-  (define uvs
-    '((0.0 1.0)
-      (0.0 0.0)
-      (1.0 0.0)
-      (1.0 1.0)))
-  (define p (%gen-mesh-vao
-              (list->f32vector (flatten verts))
-              (list->u32vector (flatten faces))
-              (list->f32vector (flatten uvs))))
-  (mesh verts faces uvs p))
-
-(define/contract (make-line #:buffer-n (buffer-n #f) a b . rest)
-  (->* (vec3? vec3?) (#:buffer-n positive-integer?) #:rest (listof vec3?) mesh?)
-  (define verts (append
-                  (list (vec3->list a) (vec3->list b))
-                  (map vec3->list rest)))
-  (define p (%gen-mesh-vao (list->f32vector (flatten verts))
-                           #:override-verts-n (if buffer-n buffer-n #f)
-                           #f))
-  (mesh verts #f #f p))
-
-(define (mesh-with-faces? m) (not (null? (mesh-faces m))))
-
-(define/contract (draw m)
-  (-> mesh-with-faces? void?)
-  (draw_elements (vao-id (mesh-vao m))
-                 (vao-array-id (mesh-vao m))
-                 (vao-element-array-id (mesh-vao m))
-                 (or (vao-uv-array-id (mesh-vao m)) -1)
-                 (* 3 (length (mesh-faces m)))))
-
-(define (draw-lines m #:connected? (connected? #t))
-  (let ((n (length (mesh-verts m))))
-    (when (and (not connected?) (not (zero? (mod n 2))))
-      (warn 'draw-lines "extra point in line mesh will not be drawn - maybe you meant to draw connected lines with #:connected? #t"))
-    (draw_lines (vao-id (mesh-vao m))
-                (vao-array-id (mesh-vao m))
-                n
-                connected?)))
-
-
-(define (make-shader vert-path frag-path fields)
-  (define FRAGMENT-SHADER #x8B30)
-  (define VERTEX-SHADER #x8B31)
-  (let* ((v (compile_shader (file->string vert-path) VERTEX-SHADER))
-         (f (compile_shader (file->string frag-path) FRAGMENT-SHADER))
-         (l (link_program v f)))
-    (when (eq? l -1)
-      (error 'make-shader "failed to link shader"))
-    (shader l fields)))
-
-(define (with-shader shader fields thunk #:draw-mode (draw-mode 'fill))
+#;(define (with-shader shader fields thunk #:draw-mode (draw-mode 'fill))
   (glUseProgram (shader-id shader))
   (case draw-mode
     ((fill) (glPolygonMode +gl-front-and-back+ +gl-fill+))
@@ -241,3 +123,12 @@
   (thunk)
   (glUseProgram 0))
 
+(define (%compile-shader vert frag)
+  (define FRAGMENT-SHADER #x8B30)
+  (define VERTEX-SHADER #x8B31)
+  (let* ((v (compile_shader (file->string vert) VERTEX-SHADER))
+         (f (compile_shader (file->string frag) FRAGMENT-SHADER))
+         (l (link_program v f)))
+    (when (eq? l -1)
+      (error '%compile-shader "failed to link shader"))
+    l))

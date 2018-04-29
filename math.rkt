@@ -1,7 +1,12 @@
 #lang typed/racket
 
+(require typed/racket/unsafe)
+(unsafe-require/typed ffi/unsafe
+                      (#:opaque CPointer cpointer?))
+
 (require/typed ffi/unsafe
-               (#:opaque CArray array?))
+               (#:opaque CArray array?)
+               (array-ptr (CArray -> CPointer)))
 
 (require/typed/provide "math-ffi.rkt"
                        (#:opaque Vec2 vec2?)
@@ -9,6 +14,8 @@
                        (#:opaque Vec4 vec4?)
                        (#:opaque Mat4 mat4?)
 
+                       ; TODO: write macro that generates these ffi declarations
+                       ; from the math-ffi file
                        (HMM_MultiplyMat4 (Mat4 Mat4 -> Mat4))
                        (add_mat (Mat4 Mat4 -> Mat4))
                        (make_id_mat (-> Mat4))
@@ -35,6 +42,10 @@
                        (vec4-w (Vec4 -> Real)))
 
 (provide (all-defined-out))
+
+(: mat4->pointer (Mat4 -> CPointer))
+(define (mat4->pointer m)
+  (array-ptr (mat4-elements m)))
 
 (define v
   (case-lambda

@@ -1,4 +1,4 @@
-RACKET_FILES=math.rkt math-ffi.rkt g.rkt main.rkt
+RACKET_FILES=$(shell find . -name "*.rkt")
 all: compiled_racket_files g.so
 
 g.so: g.cc

@@ -200,25 +200,28 @@ void draw_lines(unsigned int vao, unsigned int array_id, size_t n, bool connecte
   unbind_vao_and_vbo();
 }
 
-unsigned int load_texture(char *fname, unsigned int shader_id, char *uniform_name) {
+// TODO write some kind of texture manager because we're limited to 32 textures atm
+unsigned int load_texture(char *fname) {
+  static int n_textures = 0;
+  assert(n_textures <= 32);
   unsigned int id;
   glGenTextures(1, &id);
 
   int w, h;
   unsigned char *img;
-  glActiveTexture(GL_TEXTURE0);
+  glActiveTexture(GL_TEXTURE0 + n_textures++);
   glBindTexture(GL_TEXTURE_2D, id);
   img = stbi_load(fname, &w, &h, NULL, STBI_rgb);
   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, img);
   stbi_image_free(img);
-  glUniform1i(glGetUniformLocation(shader_id, uniform_name), 0);
 
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-  return id;
+  // XXX not tracking texture id in any way
+  return n_textures - 1;
 }
 
 void draw_elements(unsigned int vao, unsigned int array_id, unsigned int element_array_id, int uv_array_id, size_t n) {
