@@ -116,6 +116,7 @@ void init_screen(const char *caption) {
 
     glEnable(GL_MULTISAMPLE);
     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
     glDepthFunc(GL_LESS);
 
 
