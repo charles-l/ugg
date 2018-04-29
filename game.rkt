@@ -1,18 +1,21 @@
+; REMOVE this line when building exe
 #lang racket
-
-(require reloadable)
 (require ffi/vector)
 (require "g.rkt")
 
 (provide run handler yaw)
 
 (define +max-debug-lines+ 32)
-(define a-shader (make-shader "vert.glsl" "frag.glsl" '((mvp . mat4) (color . vec3))))
-(define mono-shader (make-shader "vert.glsl" "mono.glsl" '((mvp . mat4) (color . vec3))))
-(load_texture "img.png" (shader-id a-shader) "tex")
+(define a-shader (make-shader "vert.glsl" "frag.glsl" '((mvp . mat4)
+                                                        (color . vec3)
+                                                        (tex . texture))))
+(define mono-shader (make-shader "vert.glsl" "mono.glsl" '((mvp . mat4)
+                                                           (color . vec3))))
+(define tex (load_texture "img.png"))
+(define tex2 (load_texture "img2.png"))
 
 (define m (read-mesh "./x.sexp"))
-(define m-pos (make_translate_matrix (make-vec3 0.0 4.0 0.0)))
+(define m-pos (make_translate_matrix (make-vec3 0.0 2.0 0.0)))
 (define p (make-plane 4))
 
 (define *debug*
@@ -69,10 +72,10 @@
 #;(%append-verts! *debug* `((,(exact->inexact (random 4)) ,(exact->inexact (random 4)) ,(exact->inexact (random 4)))
                               (,(exact->inexact (random 4)) ,(exact->inexact (random 4)) ,(exact->inexact (random 4)))))
   (clear_frame 0.1 0.2 0.3)
-  (with-shader a-shader `((mvp . ,(m* vp m-pos)) (color . ,(make-vec3 1.0 1.0 1.0)))
+  (with-shader a-shader `((mvp . ,(m* vp m-pos)) (color . ,(make-vec3 1.0 1.0 1.0)) (tex . ,tex))
                (thunk
                  (draw m)))
-  (with-shader a-shader `((mvp . ,vp) (color . ,(make-vec3 1.0 0.0 0.0)))
+  (with-shader a-shader `((mvp . ,vp) (color . ,(make-vec3 1.0 0.0 0.0)) (tex . ,tex2))
                (thunk
                  (draw p)))
   (with-shader mono-shader `((mvp . ,vp) (color . ,(make-vec3 1.0 1.0 1.0))) #:draw-mode 'line

@@ -108,12 +108,13 @@
 (define-g make_projection (_fun c-> _mat4))
 (define-g make_id_mat (_fun c-> _mat4))
 (define-g HMM_MultiplyMat4 (_fun _mat4 _mat4 c-> _mat4))
-(define-g load_texture (_fun _string _uint32 _string c-> _uint32))
+(define-g load_texture (_fun _string c-> _uint32))
 
 (define-g glBindVertexArray (_fun _uint32 c-> _void))
 (define-g glUseProgram (_fun _uint c-> _void))
 (define-g glUniformMatrix4fv (_fun _uint _size _bool _pointer c-> _void))
 (define-g glUniform3f (_fun _int _float _float _float c-> _void))
+(define-g glUniform1i (_fun _uint _uint c-> _void))
 (define-g glGetUniformLocation (_fun _uint _symbol c-> _int))
 (define-g glPolygonMode (_fun _uint _uint c-> _void))
 (define-g glBufferSubData (_fun _uint _intptr _ptrdiff _pointer c-> _void))
@@ -254,7 +255,8 @@
                                       (match type
                                         ('mat4 (glUniformMatrix4fv id 1 #f
                                                                    (array-ptr (mat4-elements val))))
-                                        ('vec3 (glUniform3f id (vec3-x val) (vec3-y val) (vec3-z val)))))))
+                                        ('vec3 (glUniform3f id (vec3-x val) (vec3-y val) (vec3-z val)))
+                                        ('texture (glUniform1i id val))))))
       (else
         (error "required field not included" f))))
   (thunk)

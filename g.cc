@@ -192,25 +192,29 @@ void draw_lines(unsigned int vao, unsigned int array_id, size_t n, bool connecte
   unbind_vao_and_vbo();
 }
 
-unsigned int load_texture(char *fname, unsigned int shader_id, char *uniform_name) {
+// TODO write a proper texture manager
+unsigned int load_texture(char *fname) {
+  static int ntexs = 0;
+  assert(ntexs < 32);
+
   unsigned int id;
   glGenTextures(1, &id);
 
   int w, h;
   unsigned char *img;
-  glActiveTexture(GL_TEXTURE0);
+  glActiveTexture(GL_TEXTURE0 + ntexs++);
   glBindTexture(GL_TEXTURE_2D, id);
   img = stbi_load(fname, &w, &h, NULL, STBI_rgb);
   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, img);
   stbi_image_free(img);
-  glUniform1i(glGetUniformLocation(shader_id, uniform_name), 0);
 
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-  return id;
+  // XXX not tracking texture id
+  return ntexs - 1;
 }
 
 void draw_elements(unsigned int vao, unsigned int array_id, unsigned int element_array_id, int uv_array_id, size_t n) {
@@ -269,7 +273,12 @@ char is_key_down(int k) {
   return state[k];
 }
 
-SDL_bool should_lock_mouse = SDL_TRUE;
+SDL_bool should_lock_mouse =
+#ifdef NDEBUG
+SDL_TRUE;
+#else
+SDL_FALSE;
+#endif
 
 void main_loop(void (*f)(float), void (*g)(SDL_Event, float)) {
   SDL_Event event;
