@@ -113,7 +113,7 @@
 (define-g glBindVertexArray (_fun _uint32 c-> _void))
 (define-g glUseProgram (_fun _uint c-> _void))
 (define-g glUniformMatrix4fv (_fun _uint _size _bool _pointer c-> _void))
-(define-g glUniform3f (_fun _int _float _float _float c-> _void))
+(define-g glUniform3fv (_fun _int _size _vec3-pointer c-> _void))
 (define-g glUniform1i (_fun _uint _uint c-> _void))
 (define-g glGetUniformLocation (_fun _uint _symbol c-> _int))
 (define-g glPolygonMode (_fun _uint _uint c-> _void))
@@ -255,10 +255,9 @@
                                       (match type
                                         ('mat4 (glUniformMatrix4fv id 1 #f
                                                                    (array-ptr (mat4-elements val))))
-                                        ('vec3 (glUniform3f id (vec3-x val) (vec3-y val) (vec3-z val)))
+                                        ('vec3 (glUniform3fv id 1 val))
                                         ('texture (glUniform1i id val))))))
       (else
         (error "required field not included" f))))
   (thunk)
   (glUseProgram 0))
-
