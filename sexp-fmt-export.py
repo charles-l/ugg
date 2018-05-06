@@ -6,25 +6,34 @@ import bpy
 def obj_assoc_array(ob):
     m = ob.data
     
+    # keys have structure (x, y, z, u, v)
+    # value is index (for order)
+    vs = {}
+    fs = []
+    
     # grabbed from obj exporter
     import bmesh
     bm = bmesh.new()
     bm.from_mesh(m)
     bmesh.ops.triangulate(bm, faces=bm.faces)
     bm.to_mesh(m)
-
     
-    verts = [(v.co.x, v.co.y, v.co.z) for v in m.vertices]
-    faces = []
-    uvs = []
     uv_layer = bm.loops.layers.uv.verify()
     bm.faces.layers.tex.verify()
     for f in bm.faces:
-        faces.append([x.index for x in f.verts])
+        vis = []
         for l in f.loops:
-            uvs.append(list(l[uv_layer].uv))
+            vu = tuple(l.vert.co) + tuple(l[uv_layer].uv)
+            if vu not in vs:
+                vs[vu] = len(vs)
+            vis.append(vs[vu])
+        fs.append(vis)
+            
     bm.free()
-    return [ob.name, ['vertices', verts], ['faces', faces], ['uvs', uvs]]
+    vus = [vu[0] for vu in sorted(vs.items(), key=lambda x: x[1])]
+    verts = [(v[0], v[1], v[2]) for v in vus]
+    uvs = [(v[3], v[4]) for v in vus]
+    return [ob.name, ['vertices', verts], ['faces', fs], ['uvs', uvs]]
 
 # print an array as an sexpression (recursively)
 def print_array_as_sexp(a, o):

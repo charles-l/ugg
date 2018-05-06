@@ -1,5 +1,5 @@
 ; REMOVE this line when building exe
-#lang racket
+;#lang racket
 (require ffi/vector)
 (require "g.rkt")
 
