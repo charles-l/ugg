@@ -19,6 +19,12 @@ static const int SCREEN_HEIGHT = 720;
 static SDL_Window *window = NULL;
 static SDL_GLContext maincontext;
 
+typedef hmm_vec3 v3;
+typedef hmm_mat4 m44;
+typedef float f32;
+typedef unsigned int u32;
+typedef unsigned char u8;
+
 extern "C" {
 
 static void sdl_die(const char * message) {
@@ -26,14 +32,14 @@ static void sdl_die(const char * message) {
   exit(2);
 }
 
-unsigned int gen_vao() {
-  unsigned int id;
+u32 gen_vao() {
+  u32 id;
   glGenVertexArrays(1, &id);
   glBindVertexArray(id);
   return id;
 }
 
-void dump_mat4(hmm_mat4 m) {
+void dump_mat4(m44 m) {
   printf("(");
   for(int i = 0; i < 4; i++) {
     for(int j = 0; j < 4; j++) {
@@ -44,33 +50,33 @@ void dump_mat4(hmm_mat4 m) {
   }
 }
 
-hmm_vec3 mat4_relative_move(hmm_mat4 m, hmm_vec3 cur_pos, float dx, float dz, float speed) {
-  hmm_vec3 f = HMM_Vec3(m.Elements[0][2], m.Elements[1][2], m.Elements[2][2]);
-  hmm_vec3 s = HMM_Vec3(m.Elements[0][0], m.Elements[1][0], m.Elements[2][0]);
+v3 mat4_relative_move(m44 m, v3 cur_pos, f32 dx, f32 dz, f32 speed) {
+  v3 f = HMM_Vec3(m.Elements[0][2], m.Elements[1][2], m.Elements[2][2]);
+  v3 s = HMM_Vec3(m.Elements[0][0], m.Elements[1][0], m.Elements[2][0]);
   return cur_pos + speed * (-dz * f + dx * s);
 }
 
-hmm_mat4 make_id_mat() {
+m44 make_id_mat() {
   return HMM_Mat4d(1.0);
 }
 
-hmm_mat4 calculate_view(hmm_vec3 pos, float yaw, float pitch) {
-  hmm_vec3 up = HMM_Vec3(0, 1, 0);
-  hmm_vec3 right = HMM_Vec3(1, 0, 0);
-  hmm_mat4 yrot = HMM_Rotate(yaw, up);
-  hmm_mat4 prot = HMM_Rotate(pitch, right);
-  hmm_mat4 trans = HMM_Translate(pos);
-  hmm_mat4 view = prot * yrot * trans;
+m44 calculate_view(v3 pos, f32 yaw, f32 pitch) {
+  v3 up = HMM_Vec3(0, 1, 0);
+  v3 right = HMM_Vec3(1, 0, 0);
+  m44 yrot = HMM_Rotate(yaw, up);
+  m44 prot = HMM_Rotate(pitch, right);
+  m44 trans = HMM_Translate(pos);
+  m44 view = prot * yrot * trans;
   return view;
 }
 
-hmm_mat4 make_translate_matrix(hmm_vec3 v) {
-  hmm_mat4 m = HMM_Translate(v);
+m44 make_translate_matrix(v3 v) {
+  m44 m = HMM_Translate(v);
   return m;
 }
 
-hmm_mat4 make_projection(){
-    hmm_mat4 projection = HMM_Perspective(45.0f, ((float) SCREEN_WIDTH / (float) SCREEN_HEIGHT), 0.1f, 100.f);
+m44 make_projection(){
+    m44 projection = HMM_Perspective(45.0f, ((f32) SCREEN_WIDTH / (f32) SCREEN_HEIGHT), 0.1f, 100.f);
     return projection;
 }
 
@@ -127,8 +133,8 @@ SDL_Window* get_win() {
   return window;
 }
 
-unsigned int compile_shader(const char *source, unsigned int type) {
-  GLuint id = glCreateShader(type);
+u32 compile_shader(const char *source, u32 type) {
+  u32 id = glCreateShader(type);
   glShaderSource(id, 1, &source, NULL);
   glCompileShader(id);
   int result;
@@ -144,8 +150,8 @@ unsigned int compile_shader(const char *source, unsigned int type) {
   return id;
 }
 
-unsigned int link_program(unsigned int vshader, unsigned int fshader) {
-  unsigned int p = glCreateProgram();
+u32 link_program(u32 vshader, u32 fshader) {
+  u32 p = glCreateProgram();
   glAttachShader(p, vshader);
   glAttachShader(p, fshader);
   glLinkProgram(p);
@@ -166,12 +172,12 @@ unsigned int link_program(unsigned int vshader, unsigned int fshader) {
   return p;
 }
 
-void clear_frame(float r, float g, float b) {
+void clear_frame(f32 r, f32 g, f32 b) {
   glClearColor(r, g, b, 0.0f);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
-static inline void bind_vao_and_vbo(unsigned int vao, unsigned int array_id, size_t n) {
+static inline void bind_vao_and_vbo(u32 vao, u32 array_id, size_t n) {
   glBindVertexArray(vao);
 
   { // attribute 0: vertices
@@ -185,7 +191,7 @@ static inline void unbind_vao_and_vbo() {
   glBindVertexArray(0);
 }
 
-void draw_lines(unsigned int vao, unsigned int array_id, size_t n, bool connected) {
+void draw_lines(u32 vao, u32 array_id, size_t n, bool connected) {
   bind_vao_and_vbo(vao, array_id, n);
   {
     glDrawArrays(connected ? GL_LINE_STRIP : GL_LINES, 0, n);
@@ -194,15 +200,15 @@ void draw_lines(unsigned int vao, unsigned int array_id, size_t n, bool connecte
 }
 
 // TODO write a proper texture manager
-unsigned int load_texture(char *fname) {
+u32 load_texture(char *fname) {
   static int ntexs = 0;
   assert(ntexs < 32);
 
-  unsigned int id;
+  u32 id;
   glGenTextures(1, &id);
 
   int w, h;
-  unsigned char *img;
+  u8 *img;
   glActiveTexture(GL_TEXTURE0 + ntexs++);
   glBindTexture(GL_TEXTURE_2D, id);
   img = stbi_load(fname, &w, &h, NULL, STBI_rgb);
@@ -218,7 +224,7 @@ unsigned int load_texture(char *fname) {
   return ntexs - 1;
 }
 
-void draw_elements(unsigned int vao, unsigned int array_id, unsigned int element_array_id, int uv_array_id, size_t n) {
+void draw_elements(u32 vao, u32 array_id, u32 element_array_id, int uv_array_id, size_t n) {
   bind_vao_and_vbo(vao, array_id, n);
   if(uv_array_id != -1) {
     glEnableVertexAttribArray(1);
@@ -236,34 +242,34 @@ void draw_elements(unsigned int vao, unsigned int array_id, unsigned int element
   unbind_vao_and_vbo();
 }
 
-unsigned int gen_element_vbo(unsigned int *buf, size_t n) {
-  unsigned int id;
+u32 gen_element_vbo(u32 *buf, size_t n) {
+  u32 id;
   glGenBuffers(1, &id);
 
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, id);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * n, buf, GL_STATIC_DRAW);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(u32) * n, buf, GL_STATIC_DRAW);
 
   return id;
 }
 
-unsigned int gen_vert_vbo(float *buf, size_t n) {
-  unsigned int id;
+u32 gen_vert_vbo(f32 *buf, size_t n) {
+  u32 id;
   glGenBuffers(1, &id);
 
   // !!! assumes tris
   glBindBuffer(GL_ARRAY_BUFFER, id);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(float) * n, buf, GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(f32) * n, buf, GL_STATIC_DRAW);
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
 
   return id;
 }
 
-unsigned int gen_uv_vbo(float *buf, size_t n) {
-  unsigned int id;
+u32 gen_uv_vbo(f32 *buf, size_t n) {
+  u32 id;
   glGenBuffers(1, &id);
 
   glBindBuffer(GL_ARRAY_BUFFER, id);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(float) * n, buf, GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(f32) * n, buf, GL_STATIC_DRAW);
   glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, NULL);
 
   return id;
@@ -281,7 +287,7 @@ SDL_TRUE;
 SDL_FALSE;
 #endif
 
-void main_loop(void (*f)(float), void (*g)(SDL_Event, float)) {
+void main_loop(void (*f)(f32), void (*g)(SDL_Event, f32)) {
   SDL_Event event;
   SDL_SetRelativeMouseMode(should_lock_mouse);
   Uint64 last = 0;
@@ -289,7 +295,7 @@ void main_loop(void (*f)(float), void (*g)(SDL_Event, float)) {
   while (true) {
     last = now;
     now = SDL_GetPerformanceCounter();
-    float dt = ((float)(now - last)) / SDL_GetPerformanceFrequency();
+    f32 dt = ((f32)(now - last)) / SDL_GetPerformanceFrequency();
 
     SDL_GL_SwapWindow(window);
     while (SDL_PollEvent(&event)) {
