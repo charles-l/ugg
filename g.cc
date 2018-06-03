@@ -20,6 +20,7 @@ static SDL_Window *window = NULL;
 static SDL_GLContext maincontext;
 
 typedef hmm_vec3 v3;
+typedef hmm_vec4 v4;
 typedef hmm_mat4 m44;
 typedef float f32;
 typedef unsigned int u32;
@@ -55,7 +56,6 @@ v3 mat4_relative_move(m44 m, v3 cur_pos, f32 dx, f32 dz, f32 speed) {
   v3 s = HMM_Vec3(m.Elements[0][0], m.Elements[1][0], m.Elements[2][0]);
   return cur_pos + speed * (-dz * f + dx * s);
 }
-
 m44 make_id_mat() {
   return HMM_Mat4d(1.0);
 }
@@ -75,9 +75,17 @@ m44 make_translate_matrix(v3 v) {
   return m;
 }
 
+v3 transform_v(m44 m, v3 v) {
+  v4 r;
+  r.XYZ = v;
+  r.W = 1;
+  r = (m * r);
+  return r.XYZ;
+}
+
 m44 make_projection(){
-    m44 projection = HMM_Perspective(45.0f, ((f32) SCREEN_WIDTH / (f32) SCREEN_HEIGHT), 0.1f, 100.f);
-    return projection;
+  m44 projection = HMM_Perspective(45.0f, ((f32) SCREEN_WIDTH / (f32) SCREEN_HEIGHT), 0.1f, 100.f);
+  return projection;
 }
 
 void init_screen(const char *caption) {
@@ -125,6 +133,7 @@ void init_screen(const char *caption) {
     glEnable(GL_CULL_FACE);
     glDepthFunc(GL_LESS);
 
+    glPointSize(4);
 
     glViewport(0, 0, w, h);
 }
@@ -177,28 +186,6 @@ void clear_frame(f32 r, f32 g, f32 b) {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
-static inline void bind_vao_and_vbo(u32 vao, u32 array_id, size_t n) {
-  glBindVertexArray(vao);
-
-  { // attribute 0: vertices
-    glEnableVertexAttribArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, array_id);
-  }
-}
-
-static inline void unbind_vao_and_vbo() {
-  glDisableVertexAttribArray(0);
-  glBindVertexArray(0);
-}
-
-void draw_lines(u32 vao, u32 array_id, size_t n, bool connected) {
-  bind_vao_and_vbo(vao, array_id, n);
-  {
-    glDrawArrays(connected ? GL_LINE_STRIP : GL_LINES, 0, n);
-  }
-  unbind_vao_and_vbo();
-}
-
 // TODO write a proper texture manager
 u32 load_texture(char *fname) {
   static int ntexs = 0;
@@ -224,22 +211,22 @@ u32 load_texture(char *fname) {
   return ntexs - 1;
 }
 
-void draw_elements(u32 vao, u32 array_id, u32 element_array_id, int uv_array_id, size_t n) {
-  bind_vao_and_vbo(vao, array_id, n);
-  if(uv_array_id != -1) {
-    glEnableVertexAttribArray(1);
-    glBindBuffer(GL_ARRAY_BUFFER, uv_array_id);
-  }
+void draw_elements(u32 vao, size_t n) {
+  glBindVertexArray(vao);
+  glDrawElements(GL_TRIANGLES, n, GL_UNSIGNED_INT, NULL);
+  glBindVertexArray(0);
+}
 
-  {
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, element_array_id);
-    glDrawElements(GL_TRIANGLES, n, GL_UNSIGNED_INT, NULL);
-  }
+void draw_lines(u32 vao, size_t n, bool connected) {
+  glBindVertexArray(vao);
+  glDrawArrays(connected ? GL_LINE_STRIP : GL_LINES, 0, n);
+  glBindVertexArray(0);
+}
 
-  if(uv_array_id != -1) {
-    glDisableVertexAttribArray(1);
-  }
-  unbind_vao_and_vbo();
+void draw_points(u32 vao, size_t n) {
+  glBindVertexArray(vao);
+  glDrawArrays(GL_POINTS, 0, n);
+  glBindVertexArray(0);
 }
 
 u32 gen_element_vbo(u32 *buf, size_t n) {
@@ -252,25 +239,27 @@ u32 gen_element_vbo(u32 *buf, size_t n) {
   return id;
 }
 
-u32 gen_vert_vbo(f32 *buf, size_t n) {
+u32 gen_vbo_3f(uint i, f32 *buf, size_t n) {
   u32 id;
   glGenBuffers(1, &id);
 
   // !!! assumes tris
   glBindBuffer(GL_ARRAY_BUFFER, id);
   glBufferData(GL_ARRAY_BUFFER, sizeof(f32) * n, buf, GL_STATIC_DRAW);
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+  glVertexAttribPointer(i, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+  glEnableVertexAttribArray(i);
 
   return id;
 }
 
-u32 gen_uv_vbo(f32 *buf, size_t n) {
+u32 gen_vbo_2f(uint i, f32 *buf, size_t n) {
   u32 id;
   glGenBuffers(1, &id);
 
   glBindBuffer(GL_ARRAY_BUFFER, id);
   glBufferData(GL_ARRAY_BUFFER, sizeof(f32) * n, buf, GL_STATIC_DRAW);
-  glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, NULL);
+  glVertexAttribPointer(i, 2, GL_FLOAT, GL_FALSE, 0, NULL);
+  glEnableVertexAttribArray(i);
 
   return id;
 }

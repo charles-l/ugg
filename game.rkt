@@ -1,5 +1,6 @@
 ; REMOVE this line when building exe
 ;#lang racket
+
 (require ffi/vector)
 (require "g.rkt")
 
@@ -8,7 +9,8 @@
 (define +max-debug-lines+ 32)
 (define a-shader (make-shader "vert.glsl" "frag.glsl" '((mvp . mat4)
                                                         (color . vec3)
-                                                        (tex . texture))))
+                                                        (tex . texture)
+                                                        (lightPos . vec3))))
 (define mono-shader (make-shader "vert.glsl" "mono.glsl" '((mvp . mat4)
                                                            (color . vec3))))
 (define tex (load_texture "img.png"))
@@ -23,8 +25,7 @@
              (make-vec3 8.0 8.0 8.0)
              (make-vec3 1.0 4.0 1.0)
              (make-vec3 1.0 8.0 1.0)
-             #:buffer-n (* +max-debug-lines+ 2)
-             ))
+             #:buffer-n (* +max-debug-lines+ 2)))
 
 (define cam-pos (make-vec3 0.0 0.0 -4.0))
 (define yaw 0.0)
@@ -57,8 +58,12 @@
 (define mid (make_id_mat))
 (define (m* . ms) (foldr HMM_MultiplyMat4 mid ms))
 
+
+(define t 0.0)
 (define (run dt)
+  (set! t (+ t dt))
   (define view (calculate_view cam-pos yaw pitch))
+  (define light-pos (make-vec3 (sin t) 0.0 0.0))
   (define vp (m* projection view))
   (when (key-down? 'w)
     (set! cam-pos (mat4_relative_move view cam-pos 0.0 -0.5 (* dt 10))))
@@ -69,13 +74,12 @@
   (when (key-down? 'a)
     (set! cam-pos (mat4_relative_move view cam-pos 0.5 0.0 (* dt 10))))
 
-#;(%append-verts! *debug* `((,(exact->inexact (random 4)) ,(exact->inexact (random 4)) ,(exact->inexact (random 4)))
-                              (,(exact->inexact (random 4)) ,(exact->inexact (random 4)) ,(exact->inexact (random 4)))))
   (clear_frame 0.1 0.2 0.3)
-  (with-shader a-shader `((mvp . ,(m* vp m-pos)) (color . ,(make-vec3 1.0 1.0 1.0)) (tex . ,tex))
+  (with-shader a-shader `((mvp . ,(m* vp m-pos)) (color . ,(make-vec3 1.0 1.0 1.0)) (lightPos . ,cam-pos) (tex . ,tex))
                (thunk
                  (draw m)))
-  (with-shader a-shader `((mvp . ,vp) (color . ,(make-vec3 1.0 0.0 0.0)) (tex . ,tex2))
+  (with-shader a-shader `((mvp . ,vp) (color . ,(make-vec3 1.0 0.0 0.0)) (lightPos . ,cam-pos)
+                                      (tex . ,tex2))
                (thunk
                  (draw p)))
   (with-shader mono-shader `((mvp . ,vp) (color . ,(make-vec3 1.0 1.0 1.0))) #:draw-mode 'line

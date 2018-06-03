@@ -23,7 +23,7 @@ def obj_assoc_array(ob):
     for f in bm.faces:
         vis = []
         for l in f.loops:
-            vu = tuple(l.vert.co) + tuple(l[uv_layer].uv)
+            vu = tuple(l.vert.co) + tuple(l.vert.normal) + tuple(l[uv_layer].uv)
             if vu not in vs:
                 vs[vu] = len(vs)
             vis.append(vs[vu])
@@ -32,8 +32,9 @@ def obj_assoc_array(ob):
     bm.free()
     vus = [vu[0] for vu in sorted(vs.items(), key=lambda x: x[1])]
     verts = [(v[0], v[1], v[2]) for v in vus]
-    uvs = [(v[3], v[4]) for v in vus]
-    return [ob.name, ['vertices', verts], ['faces', fs], ['uvs', uvs]]
+    norms = [(v[3], v[4], v[5]) for v in vus]
+    uvs = [(v[6], v[7]) for v in vus]
+    return [ob.name, ['vertices', verts], ['faces', fs], ['uvs', uvs], ['normals', norms]]
 
 # print an array as an sexpression (recursively)
 def print_array_as_sexp(a, o):

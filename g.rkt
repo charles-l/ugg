@@ -93,11 +93,12 @@
 (define-g main_loop (_fun (_fun _float c-> _void) (_fun _sdl-event _float c-> _void) c-> _void))
 (define-g gen_vao (_fun c-> _uint32))
 (define-g clear_frame (_fun _float _float _float c-> _void))
-(define-g gen_vert_vbo (_fun _pointer _size c-> _uint32))
-(define-g gen_uv_vbo (_fun _pointer _size c-> _uint32))
+(define-g gen_vbo_3f (_fun _uint _pointer _size c-> _uint32))
+(define-g gen_vbo_2f (_fun _uint _pointer _size c-> _uint32))
 (define-g gen_element_vbo (_fun _pointer _size c-> _uint32))
-(define-g draw_elements (_fun _uint32 _uint32 _uint32 _int32 _size c-> _void))
-(define-g draw_lines (_fun _uint32 _uint32 _size _bool c-> _void))
+(define-g draw_elements (_fun _uint32 _size c-> _void))
+(define-g draw_lines (_fun _uint32 _size _bool c-> _void))
+(define-g draw_points (_fun _uint32 _size c-> _void))
 (define-g compile_shader (_fun _string _uint32 c-> _uint32))
 (define-g link_program (_fun _uint32 _uint32 c-> _uint32))
 (define-g is_key_down (_fun _sdl-scancode c-> _uint8))
@@ -108,6 +109,7 @@
 (define-g make_projection (_fun c-> _mat4))
 (define-g make_id_mat (_fun c-> _mat4))
 (define-g HMM_MultiplyMat4 (_fun _mat4 _mat4 c-> _mat4))
+(define-g transform_v (_fun _mat4 _vec3 c-> _vec3))
 (define-g load_texture (_fun _string c-> _uint32))
 
 (define-g glBindVertexArray (_fun _uint32 c-> _void))
@@ -127,9 +129,9 @@
 (define (warn f msg)
   (fprintf (current-error-port) "warning (~a): ~a\n" f msg))
 
-(struct vao (id array-id element-array-id uv-array-id))
+(struct vao (id array-id normal-id element-array-id uv-array-id))
 
-(struct mesh ((verts #:mutable) faces uvs vao) #:transparent)
+(struct mesh ((verts #:mutable) normals faces uvs vao) #:transparent)
 
 (struct shader (id fields))
 
@@ -137,22 +139,23 @@
   (not (zero? (is_key_down key))))
 
 ; XXX currently no support for oversizing elements buffer - only for extra verts atm
-(define (%gen-mesh-vao flat-vertex-coords flat-face-indices (flat-uv-coords #f) #:override-verts-n (override-verts-n #f))
+(define (%gen-mesh-vao flat-vertex-coords flat-normals flat-face-indices (flat-uv-coords #f) #:override-verts-n (override-verts-n #f))
   (let* ((n (gen_vao))
-         (r (gen_vert_vbo (f32vector->cpointer flat-vertex-coords)
-                          (if override-verts-n
-                            override-verts-n
-                            (f32vector-length flat-vertex-coords))))
+         (r (gen_vbo_3f 0 (f32vector->cpointer flat-vertex-coords)
+                        (if override-verts-n
+                          override-verts-n
+                          (f32vector-length flat-vertex-coords))))
+         (o (gen_vbo_3f 1 (f32vector->cpointer flat-normals) (f32vector-length flat-normals)))
          (f (if flat-face-indices
               (gen_element_vbo (u32vector->cpointer flat-face-indices)
                                (u32vector-length flat-face-indices))
               #f))
          (u (if flat-uv-coords
-              (gen_uv_vbo (f32vector->cpointer flat-uv-coords)
+              (gen_vbo_2f 2 (f32vector->cpointer flat-uv-coords)
                           (f32vector-length flat-uv-coords))
               #f)))
     (glBindVertexArray 0)
-    (vao n r f u)))
+    (vao n o r f u)))
 
 ; FIXME add bounds check
 (define (%append-verts! m verts)
@@ -174,10 +177,12 @@
          (verts (cadr (assoc 'vertices o)))
          (faces (cadr (assoc 'faces o)))
          (uvs (cadr (assoc 'uvs o)))
+         (norms (cadr (assoc 'normals o)))
          (p (%gen-mesh-vao (list->f32vector (flatten verts))
+                           (list->f32vector (flatten norms))
                            (list->u32vector (flatten faces))
                            (list->f32vector (flatten uvs)))))
-    (mesh verts faces uvs p)))
+    (mesh verts norms faces uvs p)))
 
 (define (make-plane side-length)
   (define s (exact->inexact side-length))
@@ -194,11 +199,17 @@
       (0.0 0.0)
       (1.0 0.0)
       (1.0 1.0)))
+  (define norms
+    '((1.0 0.0 0.0)
+      (1.0 0.0 0.0)
+      (1.0 0.0 0.0)
+      (1.0 0.0 0.0)))
   (define p (%gen-mesh-vao
               (list->f32vector (flatten verts))
+              (list->f32vector (flatten norms))
               (list->u32vector (flatten faces))
               (list->f32vector (flatten uvs))))
-  (mesh verts faces uvs p))
+  (mesh verts norms faces uvs p))
 
 (define/contract (make-line #:buffer-n (buffer-n #f) a b . rest)
   (->* (vec3? vec3?) (#:buffer-n positive-integer?) #:rest (listof vec3?) mesh?)
@@ -206,29 +217,27 @@
                   (list (vec3->list a) (vec3->list b))
                   (map vec3->list rest)))
   (define p (%gen-mesh-vao (list->f32vector (flatten verts))
+                           (list->f32vector (flatten verts))
                            #:override-verts-n (if buffer-n buffer-n #f)
                            #f))
-  (mesh verts #f #f p))
+  (mesh verts verts #f #f p))
 
 (define (mesh-with-faces? m) (not (null? (mesh-faces m))))
 
 (define/contract (draw m)
   (-> mesh-with-faces? void?)
   (draw_elements (vao-id (mesh-vao m))
-                 (vao-array-id (mesh-vao m))
-                 (vao-element-array-id (mesh-vao m))
-                 (or (vao-uv-array-id (mesh-vao m)) -1)
                  (* 3 (length (mesh-faces m)))))
 
 (define (draw-lines m #:connected? (connected? #t))
   (let ((n (length (mesh-verts m))))
     (when (and (not connected?) (not (zero? (mod n 2))))
       (warn 'draw-lines "extra point in line mesh will not be drawn - maybe you meant to draw connected lines with #:connected? #t"))
-    (draw_lines (vao-id (mesh-vao m))
-                (vao-array-id (mesh-vao m))
-                n
-                connected?)))
+    (draw_lines (vao-id (mesh-vao m)) n connected?)))
 
+(define (draw-points m)
+  (let ((n (length (mesh-verts m))))
+    (draw_points (vao-id (mesh-vao m)) n)))
 
 (define (make-shader vert-path frag-path fields)
   (define FRAGMENT-SHADER #x8B30)
