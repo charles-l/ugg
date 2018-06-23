@@ -1,0 +1,15 @@
+.dub
+docs.json
+__dummy.html
+docs/
+game.so
+game.dylib
+game.dll
+game.a
+game.lib
+game-test-*
+*.exe
+*.o
+*.obj
+*.lst
+tags

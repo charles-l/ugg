@@ -1,0 +1,7 @@
+{
+	"fileVersion": 1,
+	"versions": {
+		"glfw3d": "2.1.0",
+		"opengl": "1.0.0"
+	}
+}
