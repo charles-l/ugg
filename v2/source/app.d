@@ -34,6 +34,7 @@ Mesh loadMesh(string path) {
     import std.algorithm.iteration : map;
 
     Tag r = parseFile(path);
+
     float[] verts;
     foreach(vert; r.tags["suzanne"][0].tags["vertices"][0].tags) {
         verts ~= cast(float) vert.values[0].get!double;
@@ -41,13 +42,31 @@ Mesh loadMesh(string path) {
         verts ~= cast(float) vert.values[2].get!double;
     }
 
+    uint[] faces;
+    foreach(face; r.tags["suzanne"][0].tags["faces"][0].tags) {
+        faces ~= cast(uint) face.values[0].get!int;
+        faces ~= cast(uint) face.values[1].get!int;
+        faces ~= cast(uint) face.values[2].get!int;
+    }
+
     Mesh m;
     m.vao = genVAO();
     m.verts = verts.length / 3;
+    genElementVBO(faces);
     genVBO!(float, 3)(0, verts);
     glBindVertexArray(0);
 
     return m;
+}
+
+uint genElementVBO(uint[] buf) {
+    uint id;
+    glGenBuffers(1, &id);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, id);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, uint.sizeof * buf.length, buf.ptr, GL_STATIC_DRAW);
+
+    return id;
 }
 
 // T - type of individual compoennt
@@ -87,7 +106,7 @@ template drawLines(bool connected = false) {
 
 void drawElements(Mesh m) {
     glBindVertexArray(m.vao);
-    glDrawElements(GL_TRIANGLES, cast(uint) m.verts, GL_UNSIGNED_INT, null);
+    glDrawElements(GL_TRIANGLES, cast(uint) m.verts * 3, GL_UNSIGNED_INT, null);
     glBindVertexArray(0);
 }
 
@@ -241,7 +260,7 @@ void main() {
 
         { // draw stuff
             clearFrame(0, 0.1, 0);
-            drawPoints(m);
+            drawElements(m);
             w.swapBuffers();
         }
     }
