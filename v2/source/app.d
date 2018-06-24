@@ -29,6 +29,27 @@ VaoID genVAO() {
     return VaoID(id);
 }
 
+Mesh loadMesh(string path) {
+    import sdlang;
+    import std.algorithm.iteration : map;
+
+    Tag r = parseFile(path);
+    float[] verts;
+    foreach(vert; r.tags["suzanne"][0].tags["vertices"][0].tags) {
+        verts ~= cast(float) vert.values[0].get!double;
+        verts ~= cast(float) vert.values[1].get!double;
+        verts ~= cast(float) vert.values[2].get!double;
+    }
+
+    Mesh m;
+    m.vao = genVAO();
+    m.verts = verts.length / 3;
+    genVBO!(float, 3)(0, verts);
+    glBindVertexArray(0);
+
+    return m;
+}
+
 // T - type of individual compoennt
 // N - number of components
 template genVBO(T, uint N) {
@@ -200,17 +221,6 @@ void main() {
     glDepthFunc(GL_LESS);
     glPointSize(4);
 
-    Mesh m;
-    m.vao = genVAO();
-    m.verts = 4;
-    genVBO!(float, 3)(0, [
-            0,0,0.2,
-            0.1,0.1,0.2,
-            1, -1, 1,
-            -1, -1, -1,
-            ]);
-    glBindVertexArray(0);
-
     string vertSrc = cast(string) read("./vert.glsl", 512);
     string fragSrc = cast(string) read("./mono.glsl", 512);
     uint prog = linkProgram(
@@ -218,6 +228,8 @@ void main() {
             compileShader(fragSrc, GL_FRAGMENT_SHADER));
 
     glUseProgram(prog);
+
+    Mesh m = loadMesh("x.sdl");
     while(!w.shouldClose()) {
         glfwPollEvents();
 
@@ -229,7 +241,7 @@ void main() {
 
         { // draw stuff
             clearFrame(0, 0.1, 0);
-            drawLines(m);
+            drawPoints(m);
             w.swapBuffers();
         }
     }
