@@ -6,7 +6,6 @@ import std.string;
 import std.file;
 import std.math;
 
-
 void clearFrame(float r, float g, float b) {
     glClearColor(r, g, b, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -155,10 +154,10 @@ extern(C) nothrow void keyCallback(GLFWwindow *, int key, int scancode, int acti
         pos -= direction;
         break;
     case GLFW_KEY_A:
-        pos += direction.cross(up).normalized();
+        pos -= direction.cross(up).normalized();
         break;
     case GLFW_KEY_D:
-        pos -= direction.cross(up).normalized();
+        pos += direction.cross(up).normalized();
         break;
     default:
         printf("huh?");
@@ -230,7 +229,7 @@ void main() {
 
         { // draw stuff
             clearFrame(0, 0.1, 0);
-            drawPoints(m);
+            drawLines(m);
             w.swapBuffers();
         }
     }
