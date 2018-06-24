@@ -32,21 +32,26 @@ VaoID genVAO() {
 Mesh loadMesh(string path) {
     import sdlang;
     import std.algorithm.iteration : map;
+    import std.range;
 
-    Tag r = parseFile(path);
+    Tag root = parseFile(path);
 
     float[] verts;
-    foreach(vert; r.tags["suzanne"][0].tags["vertices"][0].tags) {
-        verts ~= cast(float) vert.values[0].get!double;
-        verts ~= cast(float) vert.values[1].get!double;
-        verts ~= cast(float) vert.values[2].get!double;
-    }
-
     uint[] faces;
-    foreach(face; r.tags["suzanne"][0].tags["faces"][0].tags) {
-        faces ~= cast(uint) face.values[0].get!int;
-        faces ~= cast(uint) face.values[1].get!int;
-        faces ~= cast(uint) face.values[2].get!int;
+    // XXX only parsing first mesh for now
+    foreach(mesh; root.tags["mesh"].take(1))
+    {
+        foreach(vert; mesh.getTag("vertices").tags) {
+            verts ~= cast(float) vert.values[0].get!double;
+            verts ~= cast(float) vert.values[1].get!double;
+            verts ~= cast(float) vert.values[2].get!double;
+        }
+
+        foreach(face; mesh.getTag("faces").tags) {
+            faces ~= cast(uint) face.values[0].get!int;
+            faces ~= cast(uint) face.values[1].get!int;
+            faces ~= cast(uint) face.values[2].get!int;
+        }
     }
 
     Mesh m;
@@ -186,22 +191,7 @@ vec3f up = [0, 1, 0];
 vec3f right = [1, 0, 0];
 
 extern(C) nothrow void keyCallback(GLFWwindow *, int key, int scancode, int action, int mods) {
-    switch(key) {
-    case GLFW_KEY_W:
-        pos += direction;
-        break;
-    case GLFW_KEY_S:
-        pos -= direction;
-        break;
-    case GLFW_KEY_A:
-        pos -= direction.cross(up).normalized();
-        break;
-    case GLFW_KEY_D:
-        pos += direction.cross(up).normalized();
-        break;
-    default:
-        printf("huh?");
-    }
+
 }
 
 extern(C) nothrow void cursorPositionCallback(GLFWwindow *w, double xpos, double ypos) {
@@ -211,6 +201,26 @@ extern(C) nothrow void cursorPositionCallback(GLFWwindow *w, double xpos, double
     // TODO: clamp the pitch of the camera - othewise weird stuff will happen
     direction = vec3f((mat4f.rotation(ypos / 1000, cameraRight) * vec4f(direction, 1)).xyz);
     glfwSetCursorPos(w, 0, 0);
+}
+
+void handleInput(GLFWwindow *win) {
+    const float speed = 0.1;
+
+    if(glfwGetKey(win, GLFW_KEY_W)) {
+        pos += direction * speed;
+    }
+
+    if(glfwGetKey(win, GLFW_KEY_S)) {
+        pos -= direction * speed;
+    }
+
+    if(glfwGetKey(win, GLFW_KEY_A)) {
+        pos -= direction.cross(up).normalized() * speed;
+    }
+
+    if(glfwGetKey(win, GLFW_KEY_D)) {
+        pos += direction.cross(up).normalized() * speed;
+    }
 }
 
 void main() {
@@ -251,11 +261,12 @@ void main() {
     Mesh m = loadMesh("x.sdl");
     while(!w.shouldClose()) {
         glfwPollEvents();
+        handleInput(w.ptr);
 
-        uint mvpid = glGetUniformLocation(prog, "mvp");
         mat4f view = mat4f.lookAt(pos, pos + direction, up);
         mat4f mvp = projection * view * mat4f.identity;
 
+        uint mvpid = glGetUniformLocation(prog, "mvp");
         glUniformMatrix4fv(mvpid, 1, true /* matrix is in row major */, mvp.ptr);
 
         { // draw stuff
