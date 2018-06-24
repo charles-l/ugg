@@ -1,6 +1,6 @@
 #version 400 core
 out vec3 ocolor;
-//in vec3 normal;
+in vec3 normal;
 
 //uniform vec3 color;
 void main(){

@@ -37,20 +37,27 @@ Mesh loadMesh(string path) {
     Tag root = parseFile(path);
 
     float[] verts;
+    float[] normals;
+    float[] uvs;
     uint[] faces;
+
     // XXX only parsing first mesh for now
     foreach(mesh; root.tags["mesh"].take(1))
     {
         foreach(vert; mesh.getTag("vertices").tags) {
-            verts ~= cast(float) vert.values[0].get!double;
-            verts ~= cast(float) vert.values[1].get!double;
-            verts ~= cast(float) vert.values[2].get!double;
+            verts ~= vert.values.map!(x => cast(float) x.get!double).array;
         }
 
         foreach(face; mesh.getTag("faces").tags) {
-            faces ~= cast(uint) face.values[0].get!int;
-            faces ~= cast(uint) face.values[1].get!int;
-            faces ~= cast(uint) face.values[2].get!int;
+            faces ~= face.values.map!(x => cast(uint) x.get!int).array;
+        }
+
+        foreach(norm; mesh.getTag("normals").tags) {
+            normals ~= norm.values.map!(x => cast(float) x.get!double).array;
+        }
+
+        foreach(uv; mesh.getTag("uvs").tags) {
+            uvs ~= uv.values.map!(x => cast(float) x.get!double).array;
         }
     }
 
@@ -59,6 +66,8 @@ Mesh loadMesh(string path) {
     m.verts = verts.length / 3;
     genElementVBO(faces);
     genVBO!(float, 3)(0, verts);
+    genVBO!(float, 3)(1, normals);
+    genVBO!(float, 2)(2, uvs);
     glBindVertexArray(0);
 
     return m;
