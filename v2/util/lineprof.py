@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
 
+# tracks the time for each line to be read into stdin,
+# plots a bargraph with the top 10 slowest lines
+
+# useful for things like profiling slow compilation with
+#
+#   dub -v ... | lineprof.py
+#
+
 import sys
 import time
 
