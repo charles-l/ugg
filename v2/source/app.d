@@ -29,6 +29,41 @@ VaoID genVAO() {
     return VaoID(id);
 }
 
+Mesh makePlane(float r) {
+    float[] verts = [
+        -r, 0, r,
+        -r, 0, -r,
+        r, 0, -r,
+        r, 0, r
+    ];
+    uint[] faces = [
+        2, 1, 0,
+        3, 2, 0
+    ];
+    float[] uvs = [
+        0, 1,
+        0, 0,
+        1, 0,
+        1, 1
+    ];
+    float[] norms = [
+        1, 0, 0,
+        1, 0, 0,
+        1, 0, 0,
+        1, 0, 0
+    ];
+    Mesh m;
+    m.vao = genVAO();
+    m.verts = verts.length / 3;
+
+    genElementVBO(faces);
+    genVBO!(float, 3)(0, verts);
+    genVBO!(float, 3)(1, norms);
+    genVBO!(float, 2)(2, uvs);
+    glBindVertexArray(0);
+    return m;
+}
+
 Mesh loadMesh(string path) {
     import sdlang;
     import std.algorithm.iteration : map;
@@ -265,6 +300,7 @@ void main() {
     glUseProgram(prog);
 
     Mesh m = loadMesh("x.sdl");
+    Mesh p = makePlane(4);
     auto tex = loadTexture("../img.png");
     while(!w.shouldClose()) {
         glfwPollEvents();
@@ -282,6 +318,7 @@ void main() {
         { // draw stuff
             clearFrame(0, 0.1, 0);
             drawElements(m);
+            drawElements(p);
             w.swapBuffers();
         }
     }
