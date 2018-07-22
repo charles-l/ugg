@@ -245,15 +245,10 @@ void main() {
 
     glfwSetInputMode(w.ptr, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
-    debug glfwSetInputMode(w.ptr, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    //debug glfwSetInputMode(w.ptr, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 
     glfwSetCursorPosCallback(w.ptr, &cursorPositionCallback);
     glfwSetCursorPos(w.ptr, 0, 0);
-
-    { // load opengl
-        import opengl.loader;
-        loadGL!(opengl.gl4);
-    }
 
     glEnable(GL_MULTISAMPLE);
     glEnable(GL_DEPTH_TEST);
