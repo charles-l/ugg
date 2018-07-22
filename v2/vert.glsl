@@ -10,7 +10,7 @@ out vec3 normal;
 out vec2 vtexcoord;
 
 void main() {
-    //vtexcoord = texcoord;
+    vtexcoord = texcoord;
     gl_Position = mvp * vec4(vpos, 1);
     normal = norm;
     pos = vpos;

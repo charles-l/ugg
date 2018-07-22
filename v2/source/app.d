@@ -166,7 +166,7 @@ uint linkProgram(uint vshader, uint fshader) {
 
 // TODO rewrite this sucker
 uint loadTexture(string fname) {
-    import gfm.freeimage;
+    import imageformats;
 
     static int ntexs = 0;
     assert(ntexs < 32);
@@ -177,9 +177,9 @@ uint loadTexture(string fname) {
     int w, h;
     glActiveTexture(GL_TEXTURE0 + ntexs++);
     glBindTexture(GL_TEXTURE_2D, id);
-    // XXX - I don't think I should be creating a new FreeImage every time
-    auto img = new FIBitmap(new FreeImage(), fname);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, img.width(), img.height(), 0, GL_RGB, GL_UNSIGNED_BYTE, img.data());
+    IFImage img = read_image(fname, ColFmt.RGB);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, img.w, img.h, 0, GL_RGB, GL_UNSIGNED_BYTE,
+            img.pixels.ptr);
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -244,9 +244,11 @@ void main() {
     w.setKeyCallback(&keyCallback);
 
     glfwSetInputMode(w.ptr, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
+    debug glfwSetInputMode(w.ptr, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+
     glfwSetCursorPosCallback(w.ptr, &cursorPositionCallback);
     glfwSetCursorPos(w.ptr, 0, 0);
-
 
     { // load opengl
         import opengl.loader;
@@ -260,7 +262,7 @@ void main() {
     glPointSize(4);
 
     string vertSrc = cast(string) read("./vert.glsl", 512);
-    string fragSrc = cast(string) read("./mono.glsl", 512);
+    string fragSrc = cast(string) read("./frag.glsl", 512);
     uint prog = linkProgram(
             compileShader(vertSrc, GL_VERTEX_SHADER),
             compileShader(fragSrc, GL_FRAGMENT_SHADER));
@@ -268,6 +270,7 @@ void main() {
     glUseProgram(prog);
 
     Mesh m = loadMesh("x.sdl");
+    auto tex = loadTexture("../img.png");
     while(!w.shouldClose()) {
         glfwPollEvents();
         handleInput(w.ptr);
@@ -277,6 +280,9 @@ void main() {
 
         uint mvpid = glGetUniformLocation(prog, "mvp");
         glUniformMatrix4fv(mvpid, 1, true /* matrix is in row major */, mvp.ptr);
+
+        uint texid = glGetUniformLocation(prog, "tex");
+        glUniform1i(texid, tex);
 
         { // draw stuff
             clearFrame(0, 0.1, 0);
