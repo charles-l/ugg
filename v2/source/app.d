@@ -54,17 +54,35 @@ vec3f direction = [0, 0, -1];
 vec3f up = [0, 1, 0];
 vec3f right = [1, 0, 0];
 
-extern(C) nothrow void keyCallback(GLFWwindow *, int key, int scancode, int action, int mods) {
-
-}
+debug bool mouseCaptured = true;
 
 extern(C) nothrow void cursorPositionCallback(GLFWwindow *w, double xpos, double ypos) {
+    debug {
+        if(!mouseCaptured)
+            return;
+    }
+
     vec3f cameraRight = direction.cross(up).normalized();
     direction = vec3f((mat4f.rotation(xpos / 1000, up) * vec4f(direction, 1)).xyz);
 
     // TODO: clamp the pitch of the camera - othewise weird stuff will happen
     direction = vec3f((mat4f.rotation(ypos / 1000, cameraRight) * vec4f(direction, 1)).xyz);
     glfwSetCursorPos(w, 0, 0);
+}
+
+
+extern(C) nothrow void keyCallback(GLFWwindow *win, int key, int scancode, int action, int mods) {
+    debug {
+        if(key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
+            mouseCaptured = !mouseCaptured;
+            if(!mouseCaptured) {
+                glfwSetInputMode(win, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+            } else {
+                glfwSetInputMode(win, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+                glfwSetCursorPos(win, 0, 0);
+            }
+        }
+    }
 }
 
 void handleInput(GLFWwindow *win) {
@@ -118,10 +136,7 @@ void main() {
 
     glfwSetInputMode(w.ptr, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
-    //debug glfwSetInputMode(w.ptr, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-
     glfwSetCursorPosCallback(w.ptr, &cursorPositionCallback);
-    glfwSetCursorPos(w.ptr, 0, 0);
 
     glEnable(GL_MULTISAMPLE);
     glEnable(GL_DEPTH_TEST);
