@@ -63,10 +63,10 @@ extern(C) nothrow void cursorPositionCallback(GLFWwindow *w, double xpos, double
     }
 
     vec3f cameraRight = direction.cross(up).normalized();
-    direction = vec3f((mat4f.rotation(xpos / 1000, up) * vec4f(direction, 1)).xyz);
+    direction = vec3f((mat4f.rotation(-xpos / 1000, up) * vec4f(direction, 1)).xyz);
 
     // TODO: clamp the pitch of the camera - othewise weird stuff will happen
-    direction = vec3f((mat4f.rotation(ypos / 1000, cameraRight) * vec4f(direction, 1)).xyz);
+    direction = vec3f((mat4f.rotation(-ypos / 1000, cameraRight) * vec4f(direction, 1)).xyz);
     glfwSetCursorPos(w, 0, 0);
 }
 
