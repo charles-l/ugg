@@ -30,6 +30,15 @@ void debugLine(DebugContext *ctx, vec3f start, vec3f end) {
     ctx.lines.verts += 2;
 }
 
+void debugArrow(DebugContext *ctx, vec3f start, vec3f end) {
+    debugLine(ctx, start, end);
+    vec3f e = (end - start).normalized() * 0.2;
+    e.z += 0.2;
+    debugLine(ctx, end - e, end);
+    e.z -= 0.4;
+    debugLine(ctx, end - e, end);
+}
+
 void drawDebug(DebugContext *ctx) {
     glBindBuffer(GL_ARRAY_BUFFER, ctx.linesVBO);
     glBufferSubData(GL_ARRAY_BUFFER, 0, (2 * ctx.nlines) * 3 * float.sizeof, cast(void *) ctx.lineVertices.ptr);

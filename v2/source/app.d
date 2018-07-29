@@ -167,7 +167,7 @@ void main() {
             setUniform(debugProg, "color", vec3f([1,1,0]));
 
             debugLine(&dbg, vec3f([0, 0, 0]), vec3f([1, 1, 1]));
-            debugLine(&dbg, vec3f([0, 0, 0]), vec3f([sin(glfwGetTime()) * 5, 1, 1]));
+            debugArrow(&dbg, vec3f([0, 0, 0]), vec3f([sin(glfwGetTime()) * 5, 1, 1]));
             writeln(dbg.nlines);
             drawDebug(&dbg);
             w.swapBuffers();
