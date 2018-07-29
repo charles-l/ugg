@@ -5,198 +5,18 @@ import std.stdio;
 import std.string;
 import std.file;
 import std.math;
+import mesh;
+import debug_draw;
 
 void clearFrame(float r, float g, float b) {
     glClearColor(r, g, b, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
-struct VaoID {
-    uint id;
-    alias id this;
-}
-
-struct Mesh {
-    VaoID vao;
-    size_t verts;
-    // TODO: maybe track vbo ids?
-}
-
-VaoID genVAO() {
-    uint id;
-    glGenVertexArrays(1, &id);
-    glBindVertexArray(id);
-    return VaoID(id);
-}
-
-Mesh makePlane(float r) {
-    float[] verts = [
-        -r, 0, r,
-        -r, 0, -r,
-        r, 0, -r,
-        r, 0, r
-    ];
-    uint[] faces = [
-        2, 1, 0,
-        3, 2, 0
-    ];
-    float[] uvs = [
-        0, 1,
-        0, 0,
-        1, 0,
-        1, 1
-    ];
-    float[] norms = [
-        1, 0, 0,
-        1, 0, 0,
-        1, 0, 0,
-        1, 0, 0
-    ];
-    Mesh m;
-    m.vao = genVAO();
-    m.verts = verts.length / 3;
-
-    genElementVBO(faces);
-    genVBO!(float, 3)(0, verts);
-    genVBO!(float, 3)(1, norms);
-    genVBO!(float, 2)(2, uvs);
-    glBindVertexArray(0);
-    return m;
-}
-
-Mesh loadMesh(string path) {
-    import sdlang;
-    import std.algorithm.iteration : map;
-    import std.range;
-
-    Tag root = parseFile(path);
-
-    float[] verts;
-    float[] normals;
-    float[] uvs;
-    uint[] faces;
-
-    // XXX only parsing first mesh for now
-    foreach(mesh; root.tags["mesh"].take(1))
-    {
-        foreach(vert; mesh.getTag("vertices").tags) {
-            verts ~= vert.values.map!(x => cast(float) x.get!double).array;
-        }
-
-        foreach(face; mesh.getTag("faces").tags) {
-            faces ~= face.values.map!(x => cast(uint) x.get!int).array;
-        }
-
-        foreach(norm; mesh.getTag("normals").tags) {
-            normals ~= norm.values.map!(x => cast(float) x.get!double).array;
-        }
-
-        foreach(uv; mesh.getTag("uvs").tags) {
-            uvs ~= uv.values.map!(x => cast(float) x.get!double).array;
-        }
-    }
-
-    Mesh m;
-    m.vao = genVAO();
-    m.verts = verts.length / 3;
-    genElementVBO(faces);
-    genVBO!(float, 3)(0, verts);
-    genVBO!(float, 3)(1, normals);
-    genVBO!(float, 2)(2, uvs);
-    glBindVertexArray(0);
-
-    return m;
-}
-
-uint genElementVBO(uint[] buf) {
-    uint id;
-    glGenBuffers(1, &id);
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, id);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, uint.sizeof * buf.length, buf.ptr, GL_STATIC_DRAW);
-
-    return id;
-}
-
-// T - type of individual compoennt
-// N - number of components
-template genVBO(T, uint N) {
-    uint genVBO(uint i, T[] buf) {
-        uint id;
-        glGenBuffers(1, &id);
-
-        // !!! assumes tris
-        glBindBuffer(GL_ARRAY_BUFFER, id);
-        glBufferData(GL_ARRAY_BUFFER, T.sizeof * buf.length, buf.ptr, GL_STATIC_DRAW);
-        glVertexAttribPointer(i, N, GL_FLOAT, GL_FALSE, 0, null);
-        glEnableVertexAttribArray(i);
-
-        return id;
-    }
-}
-
-void drawPoints(Mesh m) {
-    glBindVertexArray(m.vao);
-    glDrawArrays(GL_POINTS, 0, cast(uint) m.verts);
-    glBindVertexArray(0);
-}
-
-template drawLines(bool connected = false) {
-    void drawLines(Mesh m) {
-        glBindVertexArray(m.vao);
-        static if(connected) {
-            glDrawArrays(GL_LINE_STRIP, 0, cast(uint) m.verts);
-        } else {
-            glDrawArrays(GL_LINES, 0, cast(uint) m.verts);
-        }
-        glBindVertexArray(0);
-    }
-}
-
 void drawElements(Mesh m) {
     glBindVertexArray(m.vao);
     glDrawElements(GL_TRIANGLES, cast(uint) m.verts * 3, GL_UNSIGNED_INT, null);
     glBindVertexArray(0);
-}
-
-uint compileShader(string source, uint type) {
-    uint id = glCreateShader(type);
-    char *s = cast(char *) toStringz(source);
-    glShaderSource(id, 1u, cast(const(char**)) &s, cast(const(int *)) null);
-    glCompileShader(id);
-    int result;
-    int loglen;
-    glGetShaderiv(id, GL_COMPILE_STATUS, &result);
-    glGetShaderiv(id, GL_INFO_LOG_LENGTH, &loglen);
-    if(loglen > 0) {
-        auto log = new char[loglen + 1];
-        glGetShaderInfoLog(id, cast(uint) log.length, cast(uint *) null, log.ptr);
-        writeln("%s\n", fromStringz(log.ptr));
-        log.destroy;
-    }
-    return id;
-}
-
-uint linkProgram(uint vshader, uint fshader) {
-    uint p = glCreateProgram();
-    glAttachShader(p, vshader);
-    glAttachShader(p, fshader);
-    glLinkProgram(p);
-
-    int result, loglen;
-    glGetShaderiv(p, GL_COMPILE_STATUS, &result);
-    glGetShaderiv(p, GL_INFO_LOG_LENGTH, &loglen);
-    if(loglen > 0) {
-        auto log = new char[loglen + 1];
-        glGetProgramInfoLog(p, cast(uint) log.length, cast(uint *) null, log.ptr);
-        writeln("%s\n", fromStringz(log.ptr));
-        log.destroy;
-    }
-
-    glDeleteShader(vshader);
-    glDeleteShader(fshader);
-
-    return p;
 }
 
 // TODO rewrite this sucker
@@ -267,6 +87,24 @@ void handleInput(GLFWwindow *win) {
     }
 }
 
+void setUniform(T)(Program p, string u, T v) {
+    import std.traits;
+    import std.conv;
+    uint id = glGetUniformLocation(p.id, toStringz(u));
+    static if(isFloatingPoint!T) {
+        glUniform1f(id, v);
+    } else static if (isIntegral!T) {
+        glUniform1i(id, v);
+    } else static if (is(T == vec3f)) {
+        glUniform3fv(id, 1, v.ptr);
+    } else static if(is(T == mat4f)) {
+        glUniformMatrix4fv(id, 1, true, v.ptr);
+    } else {
+        static assert(false, "type" ~ T.stringof ~ "not handled in setUniform");
+    }
+
+}
+
 void main() {
     glfw3dInit();
 
@@ -291,17 +129,24 @@ void main() {
     glDepthFunc(GL_LESS);
     glPointSize(4);
 
-    string vertSrc = cast(string) read("./vert.glsl", 512);
-    string fragSrc = cast(string) read("./frag.glsl", 512);
-    uint prog = linkProgram(
-            compileShader(vertSrc, GL_VERTEX_SHADER),
-            compileShader(fragSrc, GL_FRAGMENT_SHADER));
+    // TODO: do this behind the scenes and use a hashtable to prevent shader duplication
+    // TODO: do lazy updates of uniforms
+    auto vertexShader = _compileShader(cast(string) read("./vert.glsl", 512), GL_VERTEX_SHADER);
+    auto fragShader = _compileShader(cast(string) read("./frag.glsl", 512), GL_FRAGMENT_SHADER);
+    auto monoShader = _compileShader(cast(string) read("./mono.glsl", 512), GL_FRAGMENT_SHADER);
+    Program prog = makeProgram(
+            vertexShader,
+            fragShader);
 
-    glUseProgram(prog);
+    Program debugProg = makeProgram(vertexShader, monoShader);
 
     Mesh m = loadMesh("x.sdl");
     Mesh p = makePlane(4);
-    auto tex = loadTexture("../img.png");
+
+    setUniform(prog, "tex", loadTexture("../img.png"));
+
+    DebugContext dbg = initDebug();
+
     while(!w.shouldClose()) {
         glfwPollEvents();
         handleInput(w.ptr);
@@ -309,16 +154,22 @@ void main() {
         mat4f view = mat4f.lookAt(pos, pos + direction, up);
         mat4f mvp = projection * view * mat4f.identity;
 
-        uint mvpid = glGetUniformLocation(prog, "mvp");
-        glUniformMatrix4fv(mvpid, 1, true /* matrix is in row major */, mvp.ptr);
-
-        uint texid = glGetUniformLocation(prog, "tex");
-        glUniform1i(texid, tex);
-
         { // draw stuff
+            use(prog);
+            setUniform(prog, "mvp", mvp);
+
             clearFrame(0, 0.1, 0);
             drawElements(m);
             drawElements(p);
+
+            use(debugProg);
+            setUniform(debugProg, "mvp", mvp);
+            setUniform(debugProg, "color", vec3f([1,1,0]));
+
+            debugLine(&dbg, vec3f([0, 0, 0]), vec3f([1, 1, 1]));
+            debugLine(&dbg, vec3f([0, 0, 0]), vec3f([sin(glfwGetTime()) * 5, 1, 1]));
+            writeln(dbg.nlines);
+            drawDebug(&dbg);
             w.swapBuffers();
         }
     }
