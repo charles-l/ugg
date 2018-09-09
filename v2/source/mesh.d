@@ -3,6 +3,8 @@ import gfm.math;
 import std.algorithm.iteration : map, reduce;
 import std.string;
 import std.stdio;
+import std.math;
+import std.typecons;
 
 struct VaoID {
     uint id;
@@ -11,7 +13,8 @@ struct VaoID {
 
 struct Mesh {
     VaoID vao;
-    size_t verts;
+    Nullable!size_t nelems;
+    size_t nverts;
     // TODO: maybe track vbo ids?
 }
 
@@ -20,6 +23,77 @@ VaoID genVAO() {
     glGenVertexArrays(1, &id);
     glBindVertexArray(id);
     return VaoID(id);
+}
+
+Mesh makeSphere(float r, uint np = 8, uint nm = 8) {
+    Mesh mesh;
+    float[] verts;
+    float[] normals;
+    uint[] faces;
+    void addTriangle(uint a, uint b, uint c) { faces ~= [a, c, b]; }
+    void addQuad(uint a, uint b, uint c, uint d) { faces ~= [a, b, c, a, c, d]; }
+
+    { // gen verts (with normals)
+        verts ~= [0, r, 0];
+        normals ~= [0, 1, 0];
+        for(int j = 0; j < np - 1; j++) {
+            float p = PI * (j+1) / float(np);
+            float sp = sin(p);
+            float cp = cos(p);
+            for(int i = 0; i < nm; i++) {
+                float m = 2.0 * PI * i / float(nm);
+                float sm = sin(m);
+                float cm = cos(m);
+                float[3] v = [sp * cm,
+                              cp,
+                              sp * sm];
+                verts ~= [v[0] * r, v[1] * r, v[2] * r];
+                normals ~= v;
+            }
+        }
+        verts ~= [0, -r, 0];
+        normals ~= [0, -1, 0];
+    }
+
+    { // connect faces
+        uint lastverti = cast(uint) (verts.length/3) - 1;
+        for(int i = 0; i < nm; i++) {
+            // add to top cap
+            addTriangle(0, i + 1, (i + 1) % nm + 1);
+            // add to bottom cap
+            addTriangle(lastverti,
+                        nm * (np-2) + ((i+1) % nm) + 1,
+                        nm * (np-2) + i+1,
+            );
+        }
+        for(int j = 0; j < np - 2; j++) {
+            uint aLoopStart = j * nm + 1;
+            uint bLoopStart = (j + 1) * nm + 1;
+            for(int i = 0; i < nm; i++) {
+                addQuad(
+                        aLoopStart + i,
+                        aLoopStart + (i+1) % nm,
+                        bLoopStart + (i+1) % nm,
+                        bLoopStart + i
+                );
+            }
+        }
+    }
+
+    auto uvs = new float[(verts.length / 3) * 2];
+
+    mesh.vao = genVAO();
+    mesh.nverts = verts.length / 3;
+    mesh.nelems = faces.length / 3;
+
+    genElementVBO(faces);
+    debug writeln(faces.length / 3);
+    debug writeln(verts.length / 3);
+    genVBO!(float, 3)(0, verts);
+    genVBO!(float, 3)(1, normals);
+    genVBO!(float, 2)(2, uvs);
+    glBindVertexArray(0);
+    return mesh;
 }
 
 Mesh makePlane(float r) {
@@ -47,7 +121,8 @@ Mesh makePlane(float r) {
     ];
     Mesh m;
     m.vao = genVAO();
-    m.verts = verts.length / 3;
+    m.nverts = verts.length / 3;
+    m.nelems = faces.length / 3;
 
     genElementVBO(faces);
     genVBO!(float, 3)(0, verts);
@@ -90,7 +165,8 @@ Mesh loadMesh(string path) {
 
     Mesh m;
     m.vao = genVAO();
-    m.verts = verts.length / 3;
+    m.nverts = verts.length / 3;
+    m.nelems = faces.length / 3;
     genElementVBO(faces);
     genVBO!(float, 3)(0, verts);
     genVBO!(float, 3)(1, normals);
@@ -138,7 +214,7 @@ template genVBO(T, uint N) {
 
 void drawPoints(Mesh m) {
     glBindVertexArray(m.vao);
-    glDrawArrays(GL_POINTS, 0, cast(uint) m.verts);
+    glDrawArrays(GL_POINTS, 0, cast(uint) m.nverts);
     glBindVertexArray(0);
 }
 
@@ -146,9 +222,9 @@ template drawLines(bool connected = false) {
     void drawLines(Mesh m) {
         glBindVertexArray(m.vao);
         static if(connected) {
-            glDrawArrays(GL_LINE_STRIP, 0, cast(uint) m.verts);
+            glDrawArrays(GL_LINE_STRIP, 0, cast(uint) m.nverts);
         } else {
-            glDrawArrays(GL_LINES, 0, cast(uint) m.verts);
+            glDrawArrays(GL_LINES, 0, cast(uint) m.nverts);
         }
         glBindVertexArray(0);
     }

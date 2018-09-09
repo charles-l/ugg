@@ -27,7 +27,7 @@ void debugLine(DebugContext *ctx, vec3f start, vec3f end) {
     ctx.lineVertices[ctx.nlines * 2] = start;
     ctx.lineVertices[ctx.nlines * 2 + 1] = end;
     ctx.nlines++;
-    ctx.lines.verts += 2;
+    ctx.lines.nverts += 2;
 }
 
 void debugArrow(DebugContext *ctx, vec3f start, vec3f end) {

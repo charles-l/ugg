@@ -1,21 +1,19 @@
 {
 	"fileVersion": 1,
 	"versions": {
-		"arsd-official": "2.1.0",
 		"colorize": "1.0.5",
 		"derelict-assimp3": "2.0.0-beta.1",
 		"derelict-fi": "3.0.0-beta.1",
-		"derelict-gl3": "2.0.0-beta.6",
+		"derelict-gl3": "2.0.0-beta.7",
 		"derelict-sdl2": "3.1.0-alpha.4",
 		"derelict-util": "3.0.0-beta.2",
-		"gfm": "7.0.0",
+		"gfm": "7.0.2",
 		"glfw3d": "2.1.0",
 		"imageformats": "7.0.0",
 		"libinputvisitor": "1.2.2",
 		"opengl": "1.0.0",
-		"sdlang-d": "0.10.3",
-		"stb": "1.7.1",
+		"sdlang-d": "0.10.4",
 		"taggedalgebraic": "0.10.11",
-		"unit-threaded": "0.7.46"
+		"unit-threaded": "0.7.51"
 	}
 }

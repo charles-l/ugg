@@ -15,7 +15,7 @@ void clearFrame(float r, float g, float b) {
 
 void drawElements(Mesh m) {
     glBindVertexArray(m.vao);
-    glDrawElements(GL_TRIANGLES, cast(uint) m.verts * 3, GL_UNSIGNED_INT, null);
+    glDrawElements(GL_TRIANGLES, cast(uint) m.nelems * 3, GL_UNSIGNED_INT, null);
     glBindVertexArray(0);
 }
 
@@ -157,6 +157,7 @@ void main() {
 
     Mesh m = loadMesh("x.sdl");
     Mesh p = makePlane(4);
+    Mesh s = makeSphere(1);
 
     setUniform(prog, "tex", loadTexture("../img.png"));
 
@@ -174,16 +175,17 @@ void main() {
             setUniform(prog, "mvp", mvp);
 
             clearFrame(0, 0.1, 0);
-            drawElements(m);
-            drawElements(p);
+            //drawElements(m);
+            //drawElements(p);
 
+            drawElements(s);
             use(debugProg);
             setUniform(debugProg, "mvp", mvp);
             setUniform(debugProg, "color", vec3f([1,1,0]));
+            drawPoints(s);
 
             debugLine(&dbg, vec3f([0, 0, 0]), vec3f([1, 1, 1]));
             debugArrow(&dbg, vec3f([0, 0, 0]), vec3f([sin(glfwGetTime()) * 5, 1, 1]));
-            writeln(dbg.nlines);
             drawDebug(&dbg);
             w.swapBuffers();
         }
