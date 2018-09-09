@@ -1,10 +1,11 @@
 import opengl.gl4;
 import gfm.math;
-import std.algorithm.iteration : map, reduce;
+import std.algorithm.iteration : map, reduce, joiner;
 import std.string;
 import std.stdio;
 import std.math;
 import std.typecons;
+import std.array;
 
 struct VaoID {
     uint id;
@@ -25,35 +26,38 @@ VaoID genVAO() {
     return VaoID(id);
 }
 
+vec3f[] makeUnitSphereVerts(uint np = 8, uint nm = 16) {
+    vec3f[] r = new vec3f[(np - 1) * nm + 2];
+    uint f = 0;
+    r[f++] = vec3f(0, 1, 0);
+    for(int j = 0; j < np - 1; j++) {
+        float p = PI * (j+1) / float(np);
+        float sp = sin(p);
+        float cp = cos(p);
+        for(int i = 0; i < nm; i++) {
+            float m = 2.0 * PI * i / float(nm);
+            float sm = sin(m);
+            float cm = cos(m);
+            vec3f v = vec3f(sp * cm, cp, sp * sm);
+            r[f++] = v;
+        }
+    }
+    r[f] = vec3f(0, -1, 0);
+    return r;
+}
+
+float[] flatten(vec3f[] arr) pure {
+    return arr.map!(v => [v.x, v.y, v.z]).join;
+}
+
 Mesh makeSphere(float r, uint np = 8, uint nm = 8) {
     Mesh mesh;
-    float[] verts;
-    float[] normals;
     uint[] faces;
     void addTriangle(uint a, uint b, uint c) { faces ~= [a, c, b]; }
     void addQuad(uint a, uint b, uint c, uint d) { faces ~= [a, b, c, a, c, d]; }
 
-    { // gen verts (with normals)
-        verts ~= [0, r, 0];
-        normals ~= [0, 1, 0];
-        for(int j = 0; j < np - 1; j++) {
-            float p = PI * (j+1) / float(np);
-            float sp = sin(p);
-            float cp = cos(p);
-            for(int i = 0; i < nm; i++) {
-                float m = 2.0 * PI * i / float(nm);
-                float sm = sin(m);
-                float cm = cos(m);
-                float[3] v = [sp * cm,
-                              cp,
-                              sp * sm];
-                verts ~= [v[0] * r, v[1] * r, v[2] * r];
-                normals ~= v;
-            }
-        }
-        verts ~= [0, -r, 0];
-        normals ~= [0, -1, 0];
-    }
+    float[] normals = makeUnitSphereVerts(np, nm).flatten;
+    float[] verts = normals.map!(x => x * r)().array();
 
     { // connect faces
         uint lastverti = cast(uint) (verts.length/3) - 1;
@@ -87,8 +91,6 @@ Mesh makeSphere(float r, uint np = 8, uint nm = 8) {
     mesh.nelems = faces.length / 3;
 
     genElementVBO(faces);
-    debug writeln(faces.length / 3);
-    debug writeln(verts.length / 3);
     genVBO!(float, 3)(0, verts);
     genVBO!(float, 3)(1, normals);
     genVBO!(float, 2)(2, uvs);

@@ -182,9 +182,9 @@ void main() {
             use(debugProg);
             setUniform(debugProg, "mvp", mvp);
             setUniform(debugProg, "color", vec3f([1,1,0]));
-            drawPoints(s);
 
             debugLine(&dbg, vec3f([0, 0, 0]), vec3f([1, 1, 1]));
+            debugSphere(&dbg, vec3f([0, 8, 0]), 4);
             debugArrow(&dbg, vec3f([0, 0, 0]), vec3f([sin(glfwGetTime()) * 5, 1, 1]));
             drawDebug(&dbg);
             w.swapBuffers();

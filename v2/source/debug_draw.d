@@ -1,5 +1,7 @@
 import opengl.gl4;
 import gfm.math : vec3f;
+import std.algorithm.iteration: map;
+import std.range: zip, drop;
 import mesh;
 
 alias DebugPoint = vec3f;
@@ -37,6 +39,13 @@ void debugArrow(DebugContext *ctx, vec3f start, vec3f end) {
     debugLine(ctx, end - e, end);
     e.z -= 0.4;
     debugLine(ctx, end - e, end);
+}
+
+void debugSphere(DebugContext *ctx, vec3f pos, float radius) {
+    auto verts = makeUnitSphereVerts().map!(x => (x * radius) + pos);
+    foreach(a, b; zip(verts, verts.drop(1))) {
+        debugLine(ctx, a, b);
+    }
 }
 
 void drawDebug(DebugContext *ctx) {
