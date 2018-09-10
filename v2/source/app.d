@@ -7,6 +7,7 @@ import std.file;
 import std.math;
 import mesh;
 import debug_draw;
+import math;
 
 void clearFrame(float r, float g, float b) {
     glClearColor(r, g, b, 0.0f);
@@ -159,16 +160,25 @@ void main() {
     Mesh p = makePlane(4);
     Mesh s = makeSphere(1);
 
+    PhysicsSphere a = PhysicsSphere(vec3f(0, 2, 0), 1);
+    PhysicsSphere b = PhysicsSphere(vec3f(0, -2, 0), 1);
+
     setUniform(prog, "tex", loadTexture("../img.png"));
 
     DebugContext dbg = initDebug();
 
+    float pt = 0;
     while(!w.shouldClose()) {
         glfwPollEvents();
         handleInput(w.ptr);
 
         mat4f view = mat4f.lookAt(pos, pos + direction, up);
         mat4f mvp = projection * view * mat4f.identity;
+
+        float t = sin(glfwGetTime()) * 2;
+        float dt = t - pt;
+        writeln(willCollide(a, b, vec3f(0, dt, 0)));
+        a.pos.y = t;
 
         { // draw stuff
             use(prog);
@@ -177,17 +187,19 @@ void main() {
             clearFrame(0, 0.1, 0);
             //drawElements(m);
             //drawElements(p);
-
-            drawElements(s);
+            //drawElements(s);
             use(debugProg);
             setUniform(debugProg, "mvp", mvp);
             setUniform(debugProg, "color", vec3f([1,1,0]));
 
+            debugSphere(&dbg, a.pos, a.radius);
+            debugSphere(&dbg, b.pos, b.radius);
             debugLine(&dbg, vec3f([0, 0, 0]), vec3f([1, 1, 1]));
-            debugSphere(&dbg, vec3f([0, 8, 0]), 4);
             debugArrow(&dbg, vec3f([0, 0, 0]), vec3f([sin(glfwGetTime()) * 5, 1, 1]));
             drawDebug(&dbg);
             w.swapBuffers();
         }
+
+        pt = t;
     }
 }
