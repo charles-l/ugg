@@ -191,6 +191,11 @@ uint genElementVBO(uint[] buf) {
 // T - type of individual compoennt
 // N - number of components (i.e. vertex has 3, (x, y, z))
 template genVBO(T, uint N) {
+    static if(is(T == float))
+        alias GL_T = GL_FLOAT;
+    else {
+        static assert(0, "unsupported genVBO type " ~ typeof(T).tostring);
+    }
     // allocate array manually
     uint genVBO(uint i, uint n, T *data = null, int draw_type = GL_DYNAMIC_DRAW) {
         uint id;
@@ -287,5 +292,23 @@ Program makeProgram(uint vid, uint fid) {
 
 Program makeProgram(string vsource, string fsource) {
     return makeProgram(_compileShader(vsource, GL_VERTEX_SHADER), _compileShader(fsource, GL_FRAGMENT_SHADER));
+}
+
+void setUniform(T)(Program p, string u, T v) {
+    import std.traits;
+    import std.conv;
+    uint id = glGetUniformLocation(p.id, toStringz(u));
+    static if(isFloatingPoint!T) {
+        glUniform1f(id, v);
+    } else static if (isIntegral!T) {
+        glUniform1i(id, v);
+    } else static if (is(T == vec3f)) {
+        glUniform3fv(id, 1, v.ptr);
+    } else static if(is(T == mat4f)) {
+        glUniformMatrix4fv(id, 1, true, v.ptr);
+    } else {
+        static assert(false, "type" ~ T.stringof ~ "not handled in setUniform");
+    }
+
 }
 

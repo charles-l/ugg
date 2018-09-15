@@ -106,24 +106,6 @@ void handleInput(GLFWwindow *win) {
     }
 }
 
-void setUniform(T)(Program p, string u, T v) {
-    import std.traits;
-    import std.conv;
-    uint id = glGetUniformLocation(p.id, toStringz(u));
-    static if(isFloatingPoint!T) {
-        glUniform1f(id, v);
-    } else static if (isIntegral!T) {
-        glUniform1i(id, v);
-    } else static if (is(T == vec3f)) {
-        glUniform3fv(id, 1, v.ptr);
-    } else static if(is(T == mat4f)) {
-        glUniformMatrix4fv(id, 1, true, v.ptr);
-    } else {
-        static assert(false, "type" ~ T.stringof ~ "not handled in setUniform");
-    }
-
-}
-
 void main() {
     glfw3dInit();
 
@@ -160,14 +142,13 @@ void main() {
     Mesh p = makePlane(4);
     Mesh s = makeSphere(1);
 
-    PhysicsSphere a = PhysicsSphere(vec3f(0, 2, 0), 1);
+    PhysicsSphere a = PhysicsSphere(vec3f(0, 0, 0), 1);
     PhysicsSphere b = PhysicsSphere(vec3f(0, -2, 0), 1);
 
     setUniform(prog, "tex", loadTexture("../img.png"));
 
     DebugContext dbg = initDebug();
 
-    float pt = 0;
     while(!w.shouldClose()) {
         glfwPollEvents();
         handleInput(w.ptr);
@@ -175,10 +156,8 @@ void main() {
         mat4f view = mat4f.lookAt(pos, pos + direction, up);
         mat4f mvp = projection * view * mat4f.identity;
 
-        float t = sin(glfwGetTime()) * 2;
-        float dt = t - pt;
-        writeln(willCollide(a, b, vec3f(0, dt, 0)));
-        a.pos.y = t;
+        float dt = -0.01;
+        a.pos = moveWithCollision(a, b, vec3f(0, dt, 0));
 
         { // draw stuff
             use(prog);
@@ -188,18 +167,11 @@ void main() {
             //drawElements(m);
             //drawElements(p);
             //drawElements(s);
-            use(debugProg);
-            setUniform(debugProg, "mvp", mvp);
-            setUniform(debugProg, "color", vec3f([1,1,0]));
 
             debugSphere(&dbg, a.pos, a.radius);
-            debugSphere(&dbg, b.pos, b.radius);
-            debugLine(&dbg, vec3f([0, 0, 0]), vec3f([1, 1, 1]));
-            debugArrow(&dbg, vec3f([0, 0, 0]), vec3f([sin(glfwGetTime()) * 5, 1, 1]));
-            drawDebug(&dbg);
+            debugSphere(&dbg, b.pos, b.radius, vec3f(0, 1, 0));
+            drawDebug(&dbg, mvp);
             w.swapBuffers();
         }
-
-        pt = t;
     }
 }
