@@ -106,15 +106,45 @@ vec3f moveWithCollision(PhysicsSphere a, PhysicsSphere b, vec3f v) {
 }
 
 version(unittest) {
-    void displayPhysicsResults(PhysicsSphere a, PhysicsSphere b, PhysicsSphere r, vec3f v) {
+    // visual debug
+    void assertPhysicsResult(PhysicsSphere a, vec3f v, PhysicsSphere b, vec3f expectedPos, vec3f actualPos) {
+        if(expectedPos == actualPos) {
+            return; // success
+        }
+        // we failed - display graphic demonstrating issue
+        import glfw3d;
+        import mesh;
+        import debug_draw;
+
+        vec3f up = vec3f(0, 1, 0);
+        Window w = initGL();
+        DebugContext dbg = initDebug();
+        auto projection = mat4f.perspective(PI / 4.0, 640.0 / 480.0, 0.1, 100.0);
+        executeGraphicsLoop(&w, () {
+            vec3f pos = vec3f(cos(glfwGetTime()) * 16, 3, sin(glfwGetTime()) * 16);
+            mat4f view = mat4f.lookAt(pos, a.pos, up);
+            mat4f mvp = projection * view * mat4f.identity;
+            {
+                //debugSphere(&dbg, a.pos, a.radius, Color(0.5, 0.5, 0.5));
+                debugSphere(&dbg, b.pos, b.radius, Color(0.0, 0.0, 0.5));
+                debugSphere(&dbg, expectedPos, a.radius, Color(0, 1, 0));
+                debugSphere(&dbg, actualPos, a.radius, Color(1, 0, 0));
+                debugArrow(&dbg, a.pos, a.pos + v);
+            }
+            drawDebug(&dbg, mvp);
+        }, (GLFWwindow *w) {});
+
+        assert(0); // mark as fail
     }
 }
 
 unittest {
     {
         PhysicsSphere a = PhysicsSphere(vec3f(0, 0, 0), 1);
-        PhysicsSphere b = PhysicsSphere(vec3f(0, 2, 0), 1);
-        vec3f r = a.moveWithCollision(b, vec3f(0, -2, 0));
-        assert(r == vec3f(0, 1, 0), to!string(r));
+        PhysicsSphere b = PhysicsSphere(vec3f(3, 0, 0), 1);
+        vec3f v = vec3f(2, 0, 0);
+        vec3f e = vec3f(1, 0, 0);
+        vec3f r = a.moveWithCollision(b, v);
+        assertPhysicsResult(a, v, b, e, r);
     }
 }

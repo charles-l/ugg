@@ -9,11 +9,6 @@ import mesh;
 import debug_draw;
 import math;
 
-void clearFrame(float r, float g, float b) {
-    glClearColor(r, g, b, 0.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-}
-
 void drawElements(Mesh m) {
     glBindVertexArray(m.vao);
     glDrawElements(GL_TRIANGLES, cast(uint) m.nelems * 3, GL_UNSIGNED_INT, null);
@@ -72,6 +67,7 @@ extern(C) nothrow void cursorPositionCallback(GLFWwindow *w, double xpos, double
 }
 
 
+// onpress event
 extern(C) nothrow void keyCallback(GLFWwindow *win, int key, int scancode, int action, int mods) {
     debug {
         if(key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
@@ -86,6 +82,7 @@ extern(C) nothrow void keyCallback(GLFWwindow *win, int key, int scancode, int a
     }
 }
 
+// isdown check
 void handleInput(GLFWwindow *win) {
     const float speed = 0.1;
 
@@ -107,25 +104,13 @@ void handleInput(GLFWwindow *win) {
 }
 
 void main() {
-    glfw3dInit();
+    Window win = initGL();
 
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
+    // grab the mouse
+    glfwSetInputMode(win.ptr, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
-    Window w = new Window(640, 480, "TEST");
-    w.makeContextCurrent();
-    w.setKeyCallback(&keyCallback);
-
-    glfwSetInputMode(w.ptr, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-
-    glfwSetCursorPosCallback(w.ptr, &cursorPositionCallback);
-
-    glEnable(GL_MULTISAMPLE);
-    glEnable(GL_DEPTH_TEST);
-    glEnable(GL_CULL_FACE);
-    glDepthFunc(GL_LESS);
-    glPointSize(4);
+    glfwSetCursorPosCallback(win.ptr, &cursorPositionCallback);
+    win.setKeyCallback(&keyCallback);
 
     // TODO: do this behind the scenes and use a hashtable to prevent shader duplication
     // TODO: do lazy updates of uniforms
@@ -135,8 +120,6 @@ void main() {
     Program prog = makeProgram(
             vertexShader,
             fragShader);
-
-    Program debugProg = makeProgram(vertexShader, monoShader);
 
     Mesh m = loadMesh("x.sdl");
     Mesh p = makePlane(4);
@@ -148,30 +131,26 @@ void main() {
     setUniform(prog, "tex", loadTexture("../img.png"));
 
     DebugContext dbg = initDebug();
-
-    while(!w.shouldClose()) {
-        glfwPollEvents();
-        handleInput(w.ptr);
-
+    executeGraphicsLoop(&win, () {
         mat4f view = mat4f.lookAt(pos, pos + direction, up);
         mat4f mvp = projection * view * mat4f.identity;
 
         float dt = -0.01;
-        a.pos = moveWithCollision(a, b, vec3f(0, dt, 0));
+        vec3f v = vec3f(0, dt, 0);
+        a.pos = moveWithCollision(a, b, v);
 
         { // draw stuff
             use(prog);
             setUniform(prog, "mvp", mvp);
 
-            clearFrame(0, 0.1, 0);
             //drawElements(m);
             //drawElements(p);
             //drawElements(s);
 
             debugSphere(&dbg, a.pos, a.radius);
+            //debugArrow(&dbg, a.pos, a.radius * v);
             debugSphere(&dbg, b.pos, b.radius, vec3f(0, 1, 0));
             drawDebug(&dbg, mvp);
-            w.swapBuffers();
         }
-    }
+    }, &handleInput);
 }

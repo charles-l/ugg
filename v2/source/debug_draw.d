@@ -8,7 +8,7 @@ import mesh;
 alias DebugPoint = vec3f;
 alias Color = vec3f;
 
-enum MAX_DEBUG_LINES = 256;
+enum MAX_DEBUG_LINES = 1024;
 
 struct DebugContext {
     vec3f[MAX_DEBUG_LINES * 2] lineVertices;

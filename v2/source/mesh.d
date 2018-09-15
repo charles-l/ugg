@@ -1,4 +1,5 @@
 import opengl.gl4;
+import glfw3d;
 import gfm.math;
 import std.algorithm.iteration : map, reduce, joiner;
 import std.string;
@@ -312,3 +313,36 @@ void setUniform(T)(Program p, string u, T v) {
 
 }
 
+void clearFrame(float r, float g, float b) {
+    glClearColor(r, g, b, 0.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+}
+
+Window initGL() {
+    glfw3dInit();
+
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
+
+    Window w = new Window(640, 480, "TEST");
+    w.makeContextCurrent();
+
+    glEnable(GL_MULTISAMPLE);
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
+    glDepthFunc(GL_LESS);
+    glPointSize(4);
+    return w;
+}
+
+void executeGraphicsLoop(Window *w, void delegate() draw,
+        void function(GLFWwindow *) handleInput) {
+    while(!w.shouldClose()) {
+        glfwPollEvents();
+        handleInput(w.ptr);
+        clearFrame(0, 0.1, 0);
+        draw();
+        w.swapBuffers();
+    }
+}
