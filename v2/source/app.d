@@ -5,6 +5,7 @@ import std.stdio;
 import std.string;
 import std.file;
 import std.math;
+import std.random;
 import mesh;
 import debug_draw;
 import math;
@@ -134,6 +135,10 @@ void main() {
     executeGraphicsLoop(&win, () {
         mat4f view = mat4f.lookAt(pos, pos + direction, up);
         mat4f mvp = projection * view * mat4f.identity;
+
+        if(glfwGetKey(win.ptr, GLFW_KEY_SPACE)) {
+            a.pos = vec3f(uniform01 * 2 - 1, 1, uniform01 * 2 - 1);
+        }
 
         float dt = -0.01;
         vec3f v = vec3f(0, dt, 0);
