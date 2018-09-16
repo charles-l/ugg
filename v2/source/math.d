@@ -82,13 +82,13 @@ float distanceFromCenter(Plane p) {
 vec3f moveWithCollision(PhysicsSphere a, PhysicsSphere b, vec3f v) {
     vec3f goal = a.pos + v;
     // is a even close enough?
-    if(sqrdist(a, b) > pow(v.magnitude, 2) + pow(a.radius, 2) + pow(b.radius, 2))
+    if(sqrdist(a, b) > pow(a.radius + v.magnitude + b.radius, 2))
         return goal;
     // is a even going towards b?
     /*if(v.dot(b.pos - a.pos) <= 0)
         return false;*/
     vec3f c = b.pos - a.pos;
-    float d = c.dot(v);
+    float d = v.normalized.dot(c);
     float f = pow(c.magnitude, 2) - pow(d, 2);
     // are we even close enough? (when a is moved along v)
     if(f > pow(a.radius + b.radius, 2))
@@ -100,15 +100,15 @@ vec3f moveWithCollision(PhysicsSphere a, PhysicsSphere b, vec3f v) {
     float distance = d - sqrt(t);
     if(v.magnitude < distance)
         return goal;
-    import std.stdio;
-    debug stderr.writeln("HAHH");
-    return Ray(a.pos, v).pointOnRay(distance);
+    return a.pos + (distance * v.normalized);
 }
 
 version(unittest) {
     // visual debug
-    void assertPhysicsResult(PhysicsSphere a, vec3f v, PhysicsSphere b, vec3f expectedPos, vec3f actualPos) {
-        if(expectedPos == actualPos) {
+    void assertPhysicsResult(PhysicsSphere a, vec3f v, PhysicsSphere b, vec3f expectedPos, vec3f actualPos, float ε = 0.01) {
+        if(approxEqual(expectedPos.x, actualPos.x, ε) &&
+           approxEqual(expectedPos.y, actualPos.y, ε) &&
+           approxEqual(expectedPos.z, actualPos.z, ε)) {
             return; // success
         }
         // we failed - display graphic demonstrating issue
@@ -144,6 +144,24 @@ unittest {
         PhysicsSphere b = PhysicsSphere(vec3f(3, 0, 0), 1);
         vec3f v = vec3f(2, 0, 0);
         vec3f e = vec3f(1, 0, 0);
+        vec3f r = a.moveWithCollision(b, v);
+        assertPhysicsResult(a, v, b, e, r);
+    }
+
+    {
+        PhysicsSphere a = PhysicsSphere(vec3f(0, 0, 0), 1);
+        PhysicsSphere b = PhysicsSphere(vec3f(2, 0, 0), 1);
+        vec3f v = vec3f(2, 0, 0);
+        vec3f e = vec3f(0, 0, 0);
+        vec3f r = a.moveWithCollision(b, v);
+        assertPhysicsResult(a, v, b, e, r);
+    }
+
+    {
+        PhysicsSphere a = PhysicsSphere(vec3f(-4, 2, 1), 0.6);
+        PhysicsSphere b = PhysicsSphere(vec3f(0, 0, 0), 1);
+        vec3f v = 8 * (b.pos - a.pos);
+        vec3f e = b.pos - ((a.radius + b.radius) * (b.pos - a.pos).normalized);
         vec3f r = a.moveWithCollision(b, v);
         assertPhysicsResult(a, v, b, e, r);
     }
